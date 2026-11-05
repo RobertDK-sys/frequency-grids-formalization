@@ -1,0 +1,356 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).  Unconditional part, item 3.
+
+# `O(T)` counting of the resonant stratum
+
+For a fixed pair `(t, σ)` the admissible indices `k ≠ 0` are those with
+`|b(t,k,σ)| ≤ T`, i.e. those integers in an interval of length `T ln 2 / π`.  We prove the
+quantitative form of `#{k ≠ 0 : |b| ≤ T} = T ln 2 / π + O(1)`, then sum over the `200`
+lattices `1 ≤ t ≤ 100`, `σ = ±1`, and compare the distinct count `N_R(T)` with the total
+mode count: `N_R ≤ N_total`, with equality exactly when there are no collisions.
+-/
+import FrequencyGrids.Lattice
+
+set_option maxRecDepth 8000
+
+namespace FrequencyGrids
+
+open Set
+
+/-! ## Counting integers in a real interval -/
+
+theorem natCast_toNat_eq (n : ℤ) : ((n.toNat : ℕ) : ℝ) = ((n.toNat : ℤ) : ℝ) := by
+  push_cast; ring
+
+/-- A finite set of integers inside a real interval of length `b - a` has at most
+`b - a + 1` elements. -/
+theorem card_le_of_forall_mem_Icc {S : Finset ℤ} {a b : ℝ} (hab : a ≤ b)
+    (h : ∀ k ∈ S, a ≤ (k : ℝ) ∧ (k : ℝ) ≤ b) : (S.card : ℝ) ≤ b - a + 1 := by
+  have hsub : S ⊆ Finset.Icc ⌈a⌉ ⌊b⌋ := by
+    intro k hk
+    obtain ⟨h1, h2⟩ := h k hk
+    exact Finset.mem_Icc.mpr ⟨Int.ceil_le.mpr h1, Int.le_floor.mpr h2⟩
+  have hc : (S.card : ℝ) ≤ ((Finset.Icc ⌈a⌉ ⌊b⌋ : Finset ℤ).card : ℝ) := by
+    exact_mod_cast Finset.card_le_card hsub
+  rw [Int.card_Icc, natCast_toNat_eq] at hc
+  have hle1 : (⌊b⌋ : ℝ) ≤ b := Int.floor_le b
+  have hle2 : a ≤ (⌈a⌉ : ℝ) := Int.le_ceil a
+  rcases le_or_gt 0 (⌊b⌋ + 1 - ⌈a⌉) with hnf | hnf
+  · rw [Int.toNat_of_nonneg hnf] at hc
+    push_cast at hc
+    linarith
+  · rw [Int.toNat_of_nonpos (le_of_lt hnf)] at hc
+    push_cast at hc
+    linarith
+
+/-- Conversely, if a finite set of integers contains every integer of `[a,b]`, then it has
+at least `b - a - 2` elements. -/
+theorem le_card_of_forall_Icc_mem {S : Finset ℤ} {a b : ℝ}
+    (h : ∀ k : ℤ, a ≤ (k : ℝ) → (k : ℝ) ≤ b → k ∈ S) : b - a - 2 ≤ (S.card : ℝ) := by
+  have hsub : Finset.Icc ⌈a⌉ ⌊b⌋ ⊆ S := by
+    intro k hk
+    rw [Finset.mem_Icc] at hk
+    exact h k (by have := Int.ceil_le.mp hk.1; exact_mod_cast this)
+      (by have := Int.le_floor.mp hk.2; exact_mod_cast this)
+  have hc : ((Finset.Icc ⌈a⌉ ⌊b⌋ : Finset ℤ).card : ℝ) ≤ (S.card : ℝ) := by
+    exact_mod_cast Finset.card_le_card hsub
+  rw [Int.card_Icc, natCast_toNat_eq] at hc
+  have hlt1 : b - 1 < (⌊b⌋ : ℝ) := by
+    have := Int.lt_floor_add_one b; linarith
+  have hlt2 : (⌈a⌉ : ℝ) < a + 1 := Int.ceil_lt_add_one a
+  rcases le_or_gt 0 (⌊b⌋ + 1 - ⌈a⌉) with hnf | hnf
+  · rw [Int.toNat_of_nonneg hnf] at hc
+    push_cast at hc
+    linarith
+  · rw [Int.toNat_of_nonpos (le_of_lt hnf)] at hc
+    push_cast at hc
+    have hcast : (⌊b⌋ : ℝ) + 1 ≤ (⌈a⌉ : ℝ) := by
+      have hh : (⌊b⌋ + 1 : ℤ) ≤ ⌈a⌉ := by omega
+      exact_mod_cast hh
+    linarith
+
+/-! ## The index set of a single lattice -/
+
+/-- The frequency of phase `α` at index `k`: `(α − 2kπ)/ln 2`. -/
+noncomputable def bOf (α : ℝ) (k : ℤ) : ℝ := (α - 2 * (k : ℝ) * Real.pi) / Real.log 2
+
+theorem b_eq_bOf (t : ℕ) (k : ℤ) (σ : ℝ) :
+    b t k σ = bOf (Real.arcsin (σ * |s2 t|)) k := rfl
+
+/-- Left end of the admissible index interval. -/
+noncomputable def kLo (α T : ℝ) : ℝ := (α - T * Real.log 2) / (2 * Real.pi)
+
+/-- Right end of the admissible index interval. -/
+noncomputable def kHi (α T : ℝ) : ℝ := (α + T * Real.log 2) / (2 * Real.pi)
+
+/-- The indices `k ≠ 0` of the lattice of phase `α` with `|bOf α k| ≤ T`. -/
+noncomputable def kSet (α T : ℝ) : Finset ℤ :=
+  (Finset.Icc ⌈kLo α T⌉ ⌊kHi α T⌋).erase 0
+
+theorem kHi_sub_kLo (α T : ℝ) : kHi α T - kLo α T = T * Real.log 2 / Real.pi := by
+  unfold kHi kLo
+  have hp : Real.pi ≠ 0 := Real.pi_ne_zero
+  field_simp
+  ring
+
+/-- ceil/floor bridge between integer intervals and real intervals. -/
+theorem mem_Icc_ceil_floor (α T : ℝ) (k : ℤ) :
+    ⌈kLo α T⌉ ≤ k ∧ k ≤ ⌊kHi α T⌋ ↔ kLo α T ≤ (k : ℝ) ∧ (k : ℝ) ≤ kHi α T := by
+  constructor
+  · rintro ⟨h1, h2⟩
+    exact ⟨Int.ceil_le.mp h1, Int.le_floor.mp h2⟩
+  · rintro ⟨h1, h2⟩
+    exact ⟨Int.ceil_le.mpr h1, Int.le_floor.mpr h2⟩
+
+/-- Membership in the index interval, in terms of the frequency. -/
+theorem mem_Icc_iff_abs_bOf (α T : ℝ) (k : ℤ) :
+    kLo α T ≤ (k : ℝ) ∧ (k : ℝ) ≤ kHi α T ↔ |bOf α k| ≤ T := by
+  have hl : (0:ℝ) < Real.log 2 := log_two_pos
+  have hp : (0:ℝ) < 2 * Real.pi := by positivity
+  have e1 : kLo α T ≤ (k : ℝ) ↔ α - T * Real.log 2 ≤ (k : ℝ) * (2 * Real.pi) := by
+    unfold kLo
+    exact div_le_iff₀ hp
+  have e2 : (k : ℝ) ≤ kHi α T ↔ (k : ℝ) * (2 * Real.pi) ≤ α + T * Real.log 2 := by
+    unfold kHi
+    exact le_div_iff₀ hp
+  have e3 : |bOf α k| ≤ T ↔ |α - 2 * (k : ℝ) * Real.pi| ≤ T * Real.log 2 := by
+    unfold bOf
+    rw [abs_div, abs_of_pos hl, div_le_iff₀ hl]
+  rw [e1, e2, e3, abs_le]
+  constructor
+  · rintro ⟨h1, h2⟩; constructor <;> linarith
+  · rintro ⟨h1, h2⟩; constructor <;> linarith
+
+theorem mem_kSet_iff {α T : ℝ} {k : ℤ} :
+    k ∈ kSet α T ↔ k ≠ 0 ∧ |bOf α k| ≤ T := by
+  unfold kSet
+  rw [Finset.mem_erase, Finset.mem_Icc, mem_Icc_ceil_floor, mem_Icc_iff_abs_bOf]
+
+/-- **Counting a single lattice.**  For every phase `α` and every `T ≥ 0` the number of
+admissible indices differs from `T ln 2 / π` by at most `3`. -/
+theorem card_kSet_bounds (α T : ℝ) (hT : 0 ≤ T) :
+    |((kSet α T).card : ℝ) - T * Real.log 2 / Real.pi| ≤ 3 := by
+  have hab : kLo α T ≤ kHi α T := by
+    have h := kHi_sub_kLo α T
+    have : 0 ≤ T * Real.log 2 / Real.pi := by positivity
+    linarith
+  -- upper bound
+  have hupper : ((kSet α T).card : ℝ) ≤ T * Real.log 2 / Real.pi + 1 := by
+    have h := card_le_of_forall_mem_Icc (S := kSet α T) hab
+      (fun k hk => (mem_Icc_iff_abs_bOf α T k).mpr (mem_kSet_iff.mp hk).2)
+    have := kHi_sub_kLo α T
+    linarith
+  -- lower bound: removing `k = 0` loses at most one element of the integer interval
+  have hlow : T * Real.log 2 / Real.pi - 3 ≤ ((kSet α T).card : ℝ) := by
+    have h := le_card_of_forall_Icc_mem (S := insert (0:ℤ) (kSet α T)) (a := kLo α T)
+      (b := kHi α T) (fun k h1 h2 => by
+        rw [Finset.mem_insert]
+        by_cases hk : k = 0
+        · exact Or.inl hk
+        · exact Or.inr (mem_kSet_iff.mpr ⟨hk, (mem_Icc_iff_abs_bOf α T k).mp ⟨h1, h2⟩⟩))
+    have hc2 : ((insert (0:ℤ) (kSet α T)).card : ℝ) ≤ ((kSet α T).card : ℝ) + 1 := by
+      have := Finset.card_insert_le (0:ℤ) (kSet α T)
+      have : (insert (0:ℤ) (kSet α T)).card ≤ (kSet α T).card + 1 := this
+      exact_mod_cast this
+    have h3 := kHi_sub_kLo α T
+    linarith
+  rw [abs_le]
+  constructor <;> linarith
+
+/-! ## The full triplet family `1 ≤ t ≤ 100`, `σ = ± 1` -/
+
+/-- The two signs. -/
+noncomputable def sigmaSet : Finset ℝ := {-1, 1}
+
+theorem card_sigmaSet : sigmaSet.card = 2 := by
+  have h : ((-1:ℝ) ≠ 1) := by norm_num
+  simpa [sigmaSet] using Finset.card_pair h
+
+theorem mem_sigmaSet {σ : ℝ} : σ ∈ sigmaSet ↔ σ = -1 ∨ σ = 1 := by
+  simp [sigmaSet]
+
+/-- The phase `arcsin(σ |s2 t|)` attached to the lattice of the pair `(t,σ)`. -/
+noncomputable def phase (t : ℕ) (σ : ℝ) : ℝ := Real.arcsin (σ * |s2 t|)
+
+/-- The `200` lattices of the construction, as pairs `(t, σ)`. -/
+noncomputable def latticeSet : Finset (ℕ × ℝ) := (Finset.Icc 1 100) ×ˢ sigmaSet
+
+theorem card_Icc_1_100 : (Finset.Icc 1 100).card = 100 := by decide
+
+theorem card_latticeSet : latticeSet.card = 200 := by
+  unfold latticeSet
+  rw [Finset.card_product, card_Icc_1_100, card_sigmaSet]
+
+/-- The resonant modes: triplets `(t,k,σ)` with `1 ≤ t ≤ 100`, `σ = ±1`, `k ≠ 0` and
+`|b(t,k,σ)| ≤ T`.  This is the paper's `R_B(T)` *as a multiset of triplets*. -/
+noncomputable def modeSet (T : ℝ) : Finset (ℕ × ℤ × ℝ) :=
+  latticeSet.biUnion fun p => (kSet (phase p.1 p.2) T).image (fun k => (p.1, k, p.2))
+
+theorem mem_modeSet {T : ℝ} {p : ℕ × ℤ × ℝ} :
+    p ∈ modeSet T ↔ p.1 ∈ Finset.Icc 1 100 ∧ p.2.2 ∈ sigmaSet ∧ p.2.1 ≠ 0
+      ∧ |b p.1 p.2.1 p.2.2| ≤ T := by
+  unfold modeSet latticeSet
+  rw [Finset.mem_biUnion]
+  constructor
+  · rintro ⟨q, hq, hpq⟩
+    rw [Finset.mem_product] at hq
+    simp only [Finset.mem_image] at hpq
+    obtain ⟨k, hk, rfl⟩ := hpq
+    have hspec := mem_kSet_iff.mp hk
+    refine ⟨hq.1, hq.2, hspec.1, ?_⟩
+    rw [b_eq_bOf]
+    exact hspec.2
+  · rintro ⟨h1, h2, h3, h4⟩
+    refine ⟨(p.1, p.2.2), Finset.mem_product.mpr ⟨h1, h2⟩, ?_⟩
+    rw [Finset.mem_image]
+    refine ⟨p.2.1, ?_, rfl⟩
+    rw [mem_kSet_iff]
+    exact ⟨h3, h4⟩
+
+/-- The total number of modes (triplets) with `|b| ≤ T`. -/
+noncomputable def Ntotal (T : ℝ) : ℕ := (modeSet T).card
+
+/-- The number of *distinct* frequencies, `N_R(T)`. -/
+noncomputable def NR (T : ℝ) : ℕ :=
+  ((modeSet T).image fun p => b p.1 p.2.1 p.2.2).card
+
+/-- The number of collisions: two distinct triplets with the same frequency. -/
+def HasCollision (T : ℝ) : Prop :=
+  ∃ p ∈ modeSet T, ∃ q ∈ modeSet T, p ≠ q ∧ b p.1 p.2.1 p.2.2 = b q.1 q.2.1 q.2.2
+
+/-- The mode set splits as a disjoint union over the `200` lattices. -/
+theorem card_modeSet (T : ℝ) :
+    (modeSet T).card = ∑ p ∈ latticeSet, (kSet (phase p.1 p.2) T).card := by
+  have hdisj : ∀ x ∈ latticeSet, ∀ y ∈ latticeSet, x ≠ y →
+      Disjoint ((kSet (phase x.1 x.2) T).image (fun k => (x.1, k, x.2)))
+        ((kSet (phase y.1 y.2) T).image (fun k => (y.1, k, y.2))) := by
+    intro x _ y _ hxy
+    rw [Finset.disjoint_left]
+    intro z hzx hzy
+    simp only [Finset.mem_image] at hzx hzy
+    obtain ⟨k, _, hk⟩ := hzx
+    obtain ⟨k', _, hk'⟩ := hzy
+    have heq : (x.1, k, x.2) = (y.1, k', y.2) := hk.trans hk'.symm
+    simp only [Prod.mk.injEq] at heq
+    exact hxy (Prod.ext_iff.mpr ⟨heq.1, heq.2.2⟩)
+  unfold modeSet
+  rw [Finset.card_biUnion hdisj]
+  apply Finset.sum_congr rfl
+  intro p _
+  have hinj : Set.InjOn (fun k : ℤ => (p.1, k, p.2)) ↑(kSet (phase p.1 p.2) T) := by
+    intro a _ b _ h
+    simpa using h
+  exact Finset.card_image_of_injOn hinj
+
+/-- **`N_total(T) = 200 · T ln 2 / π + O(1)`**, with the explicit error `200 · 3`. -/
+theorem Ntotal_bounds (T : ℝ) (hT : 0 ≤ T) :
+    |((Ntotal T : ℝ) - 200 * (T * Real.log 2 / Real.pi))| ≤ 600 := by
+  have hK : (0:ℝ) ≤ T * Real.log 2 / Real.pi := by positivity
+  have hterm : ∀ p ∈ latticeSet,
+      |((kSet (phase p.1 p.2) T).card : ℝ) - T * Real.log 2 / Real.pi| ≤ 3 :=
+    fun p _ => card_kSet_bounds _ T hT
+  have hupper : (∑ p ∈ latticeSet, ((kSet (phase p.1 p.2) T).card : ℝ))
+      ≤ ∑ _p ∈ latticeSet, (T * Real.log 2 / Real.pi + 3) := by
+    apply Finset.sum_le_sum
+    intro p hp
+    have := hterm p hp
+    have := le_abs_self (((kSet (phase p.1 p.2) T).card : ℝ) - T * Real.log 2 / Real.pi)
+    linarith
+  have hlower : (∑ _p ∈ latticeSet, (T * Real.log 2 / Real.pi - 3))
+      ≤ ∑ p ∈ latticeSet, ((kSet (phase p.1 p.2) T).card : ℝ) := by
+    apply Finset.sum_le_sum
+    intro p hp
+    have := hterm p hp
+    have := neg_abs_le (((kSet (phase p.1 p.2) T).card : ℝ) - T * Real.log 2 / Real.pi)
+    linarith
+  have hconst : ∀ c : ℝ, (∑ _p ∈ latticeSet, c) = 200 * c := by
+    intro c
+    rw [Finset.sum_const, card_latticeSet, nsmul_eq_mul]
+    norm_num
+  rw [hconst] at hupper hlower
+  have hsum : ((modeSet T).card : ℝ)
+      = ∑ p ∈ latticeSet, ((kSet (phase p.1 p.2) T).card : ℝ) := by
+    rw [card_modeSet, Nat.cast_sum]
+  simp only [Ntotal]
+  rw [hsum]
+  rw [abs_le]
+  constructor <;> linarith
+
+/-- **`N_R ≤ N_total`**: the distinct count never exceeds the mode count. -/
+theorem NR_le_Ntotal (T : ℝ) : NR T ≤ Ntotal T := by
+  unfold NR Ntotal
+  exact Finset.card_image_le
+
+/-- **Equality holds exactly when there are no collisions.** -/
+theorem NR_eq_Ntotal_iff (T : ℝ) : NR T = Ntotal T ↔ ¬ HasCollision T := by
+  unfold NR Ntotal HasCollision
+  rw [Finset.card_image_iff]
+  constructor
+  · rintro hinj ⟨p, hp, q, hq, hpq, hb⟩
+    exact hpq (hinj hp hq hb)
+  · intro h p hp q hq hb
+    by_contra hne
+    exact h ⟨p, hp, q, hq, hne, hb⟩
+
+/-- The observed slope: `200 ln 2 / π` lies between `44.12` and `44.14`. -/
+theorem slope_bounds : (44.12 : ℝ) < 200 * Real.log 2 / Real.pi
+    ∧ 200 * Real.log 2 / Real.pi < 44.14 := by
+  have hl1 : (0.6931471803 : ℝ) < Real.log 2 := Real.log_two_gt_d9
+  have hl2 : Real.log 2 < 0.6931471808 := Real.log_two_lt_d9
+  have hp1 : (3.141592 : ℝ) < Real.pi := Real.pi_gt_d6
+  have hp2 : Real.pi < 3.141593 := Real.pi_lt_d6
+  constructor
+  · rw [lt_div_iff₀ (by linarith : (0:ℝ) < Real.pi)]
+    nlinarith
+  · rw [div_lt_iff₀ (by linarith : (0:ℝ) < Real.pi)]
+    nlinarith
+
+/-- **`N_total(T) = 44.13 T + error`**, error at most `600 + T/100`. -/
+theorem Ntotal_approx (T : ℝ) (hT : 0 ≤ T) :
+    |((Ntotal T : ℝ) - 44.13 * T)| ≤ 600 + T / 100 := by
+  have hb := Ntotal_bounds T hT
+  have h1 := slope_bounds.1
+  have h2 := slope_bounds.2
+  have hK : 200 * (T * Real.log 2 / Real.pi) = (200 * Real.log 2 / Real.pi) * T := by ring
+  rw [hK] at hb
+  have h3 : |(200 * Real.log 2 / Real.pi) * T - 44.13 * T| ≤ T / 100 := by
+    rw [← sub_mul, abs_mul, abs_of_nonneg hT]
+    have : |200 * Real.log 2 / Real.pi - 44.13| ≤ 1/100 := by
+      rw [abs_le]; constructor <;> linarith
+    calc |200 * Real.log 2 / Real.pi - 44.13| * T ≤ (1/100) * T := by
+          apply mul_le_mul_of_nonneg_right this hT
+      _ = T / 100 := by ring
+  have h4 : ((Ntotal T : ℝ) - 44.13 * T)
+      = ((Ntotal T : ℝ) - (200 * Real.log 2 / Real.pi) * T)
+        + ((200 * Real.log 2 / Real.pi) * T - 44.13 * T) := by ring
+  rw [h4]
+  calc |((Ntotal T : ℝ) - (200 * Real.log 2 / Real.pi) * T)
+        + ((200 * Real.log 2 / Real.pi) * T - 44.13 * T)|
+      ≤ |(Ntotal T : ℝ) - (200 * Real.log 2 / Real.pi) * T|
+        + |(200 * Real.log 2 / Real.pi) * T - 44.13 * T| := abs_add_le _ _
+    _ ≤ 600 + T / 100 := by linarith
+
+/-- **`N_R(T) ≤ 44.14 T + 600`** — the distinct resonant count is at most linear with the
+paper's observed slope, plus the explicit `O(1)` error. -/
+theorem NR_le_slope (T : ℝ) (hT : 0 ≤ T) : (NR T : ℝ) ≤ 44.14 * T + 600 := by
+  have h := NR_le_Ntotal T
+  have hb := Ntotal_bounds T hT
+  have hup := slope_bounds.2
+  have h1 : ((Ntotal T : ℝ) - 200 * (T * Real.log 2 / Real.pi)) ≤ 600 := by
+    have := le_abs_self ((Ntotal T : ℝ) - 200 * (T * Real.log 2 / Real.pi))
+    linarith
+  have h2 : 200 * (T * Real.log 2 / Real.pi) = (200 * Real.log 2 / Real.pi) * T := by ring
+  rw [h2] at h1
+  have h3 : (200 * Real.log 2 / Real.pi) * T ≤ 44.14 * T := by nlinarith
+  have : (NR T : ℝ) ≤ Ntotal T := by exact_mod_cast h
+  linarith
+
+/-- The number of modes is the cardinality of the triplet set (definitional). -/
+theorem card_modeSet_eq_Ntotal (T : ℝ) : (modeSet T).card = Ntotal T := rfl
+
+/-- Without collisions the distinct count equals the mode count. -/
+theorem NR_eq_Ntotal_of_noCollision (T : ℝ) (h : ¬ HasCollision T) : NR T = Ntotal T :=
+  (NR_eq_Ntotal_iff T).mpr h
+
+end FrequencyGrids

@@ -1,0 +1,263 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).
+
+# Uniqueness of the root `s2(t)` by strict monotonicity
+
+With `u = s²`, the equation `E(s,k₃) = 0` on `(-1,0)` is
+
+  `u² = 24 k₃² (1-u)² (1+3u²-u³)`,   i.e.   `f(u) = 24k₃²`   with
+  `f(u) = u² / ((1-u)² (1+3u²-u³))`.
+
+On `(0,1)`, `f > 0` and the logarithmic derivative is
+
+  `f'/f = 2/(u(1-u)) - (6u-3u²)/(1+3u²-u³)`,
+
+and `2/(u(1-u)) ≥ 8` (since `u(1-u) ≤ 1/4`) while `(6u-3u²)/(1+3u²-u³) ≤ 3` (numerator `≤ 3`,
+denominator `≥ 1`).  So `f'/f ≥ 5 > 0` and `f` is strictly increasing.  Hence the root is
+unique and does not depend on the choice made in `s2`.
+
+The derivative is computed in the equivalent explicit form
+`f'(u) = u(1-u)(2+7u³-3u⁴) / ((1-u)²(1+3u²-u³))²`, whose sign is immediate.
+-/
+import FrequencyGrids.Basic
+
+set_option maxRecDepth 8000
+
+open Set
+
+namespace FrequencyGrids
+
+/-- The ratio `f(u) = u²/((1-u)²(1+3u²-u³))`. -/
+noncomputable def rootRat (u : ℝ) : ℝ := u^2 / ((1-u)^2 * (1 + 3*u^2 - u^3))
+
+theorem rootRat_denom_pos {u : ℝ} (hu : u ∈ Ioo 0 1) :
+    (0:ℝ) < (1-u)^2 * (1 + 3*u^2 - u^3) := by
+  have h1 : (0:ℝ) < (1-u)^2 := by
+    have h : (0:ℝ) < 1 - u := by linarith [hu.2]
+    positivity
+  have hspos : (0:ℝ) < u^2 := by nlinarith [hu.1]
+  have hfac : 3*u^2 - u^3 = u^2 * (3 - u) := by ring
+  have h2 : (0:ℝ) < 1 + 3*u^2 - u^3 := by
+    have h3 : (0:ℝ) < 3 - u := by linarith [hu.2]
+    nlinarith [mul_pos hspos h3]
+  exact mul_pos h1 h2
+
+theorem rootRat_pos {u : ℝ} (hu : u ∈ Ioo 0 1) : (0:ℝ) < rootRat u := by
+  have hd := rootRat_denom_pos hu
+  have hspos : (0:ℝ) < u^2 := by nlinarith [hu.1]
+  unfold rootRat
+  exact div_pos hspos hd
+
+/-! ## The derivative -/
+
+theorem deriv_A2 (u : ℝ) : deriv (fun y : ℝ => (1-y)^2) u = 2*(1-u)*(-1) := by
+  rw [show (fun y : ℝ => (1-y)^2) = ((fun y : ℝ => 1-y) ^ 2) from by funext y; simp]
+  rw [deriv_pow (by fun_prop : DifferentiableAt ℝ (fun y : ℝ => 1 - y) u)]
+  simp
+
+theorem deriv_B (u : ℝ) : deriv (fun y : ℝ => 1 + 3*y^2 - y^3) u = 6*u - 3*u^2 := by
+  have h3 : deriv (fun y : ℝ => y^3) u = 3*u^2 := by
+    rw [show (fun y : ℝ => y^3) = ((fun y : ℝ => y) ^ 3) from by funext y; simp]
+    rw [deriv_pow (by fun_prop : DifferentiableAt ℝ (fun y : ℝ => y) u)]
+    simp
+  have h2 : deriv (fun y : ℝ => 3*y^2) u = 6*u := by
+    rw [show (fun y : ℝ => 3*y^2) = ((fun _ : ℝ => (3:ℝ)) * fun y : ℝ => y^2) from by
+      funext y; simp]
+    rw [deriv_mul (by fun_prop) (by fun_prop)]
+    simp
+    ring
+  rw [show (fun y : ℝ => 1 + 3*y^2 - y^3)
+      = ((fun _ : ℝ => (1:ℝ)) + fun y : ℝ => 3*y^2) - fun y : ℝ => y^3 from by funext y; simp]
+  rw [deriv_sub (by fun_prop) (by fun_prop), deriv_add (by fun_prop) (by fun_prop), h2, h3]
+  simp
+
+/-- **The derivative of `f`**, in the explicit polynomial form. -/
+theorem deriv_rootRat {u : ℝ} (hu : u ∈ Ioo 0 1) :
+    deriv rootRat u
+      = u * (1-u) * (2 + 7*u^3 - 3*u^4) / ((1-u)^2*(1+3*u^2-u^3))^2 := by
+  have hd : ((1-u)^2 * (1 + 3*u^2 - u^3)) ≠ 0 := ne_of_gt (rootRat_denom_pos hu)
+  have hform : rootRat = ((fun y : ℝ => y^2) / fun y : ℝ => (1-y)^2 * (1 + 3*y^2 - y^3)) := by
+    funext y
+    simp [rootRat]
+  have hdc : DifferentiableAt ℝ (fun y : ℝ => y^2) u := by fun_prop
+  have hdd : DifferentiableAt ℝ (fun y : ℝ => (1-y)^2 * (1 + 3*y^2 - y^3)) u := by fun_prop
+  rw [hform, deriv_div hdc hdd hd]
+  rw [show deriv (fun y : ℝ => y^2) u = 2*u from by simp]
+  rw [show (fun y : ℝ => (1-y)^2 * (1 + 3*y^2 - y^3))
+      = ((fun y : ℝ => (1-y)^2) * fun y : ℝ => 1 + 3*y^2 - y^3) from by funext y; simp]
+  rw [deriv_mul (by fun_prop) (by fun_prop), deriv_A2, deriv_B]
+  field_simp
+  ring
+
+/-- `1 + 3u² - u³ > 0` on `(0,1)`. -/
+theorem cubeFactor_pos {u : ℝ} (hu : u ∈ Ioo 0 1) : (0:ℝ) < 1 + 3*u^2 - u^3 := by
+  have hspos : (0:ℝ) < u^2 := by nlinarith [hu.1]
+  have hfac : 3*u^2 - u^3 = u^2 * (3 - u) := by ring
+  have h3 : (0:ℝ) < 3 - u := by linarith [hu.2]
+  nlinarith [mul_pos hspos h3]
+
+/-- The logarithmic derivative of `f`, for the record. -/
+theorem deriv_rootRat_log {u : ℝ} (hu : u ∈ Ioo 0 1) :
+    deriv rootRat u = rootRat u * (2/(u*(1-u)) - (6*u - 3*u^2)/(1 + 3*u^2 - u^3)) := by
+  rw [deriv_rootRat hu]
+  have hu0 : u ≠ 0 := ne_of_gt hu.1
+  have hu1 : 1 - u ≠ 0 := by linarith [hu.2]
+  have hg : 1 + 3*u^2 - u^3 ≠ 0 := ne_of_gt (cubeFactor_pos hu)
+  have hL : 2/(u*(1-u)) - (6*u - 3*u^2)/(1 + 3*u^2 - u^3)
+      = (2 + 7*u^3 - 3*u^4)/(u*(1-u)*(1 + 3*u^2 - u^3)) := by
+    rw [div_sub_div _ _ (mul_ne_zero hu0 hu1) hg]
+    rw [div_eq_div_iff (mul_ne_zero (mul_ne_zero hu0 hu1) hg)
+      (mul_ne_zero (mul_ne_zero hu0 hu1) hg)]
+    ring
+  rw [hL]
+  unfold rootRat
+  rw [div_mul_div_comm]
+  rw [div_eq_div_iff (pow_ne_zero 2 (mul_ne_zero (pow_ne_zero 2 hu1) hg))
+    (mul_ne_zero (mul_ne_zero (pow_ne_zero 2 hu1) hg)
+      (mul_ne_zero (mul_ne_zero hu0 hu1) hg))]
+  ring
+
+/-- The two crude bounds behind `f'/f ≥ 5`. -/
+theorem logDeriv_ge_five {u : ℝ} (hu : u ∈ Ioo 0 1) :
+    5 ≤ 2/(u*(1-u)) - (6*u - 3*u^2)/(1 + 3*u^2 - u^3) := by
+  have hu0 : (0:ℝ) < u := hu.1
+  have hu1 : u < 1 := hu.2
+  have hpos : (0:ℝ) < u*(1-u) := by nlinarith
+  have hg : (0:ℝ) < 1 + 3*u^2 - u^3 := cubeFactor_pos hu
+  have h1 : 2/(u*(1-u)) ≥ 8 := by
+    rw [ge_iff_le, le_div_iff₀ hpos]
+    nlinarith [sq_nonneg (u - 1/2), sq_nonneg u, sq_nonneg (1-u), mul_pos hu0 (by linarith : (0:ℝ) < 1-u)]
+  have h2 : (6*u - 3*u^2)/(1 + 3*u^2 - u^3) ≤ 3 := by
+    rw [div_le_iff₀ hg]
+    nlinarith [sq_nonneg u, mul_pos hu0 (by linarith : (0:ℝ) < 1-u)]
+  linarith
+
+/-- **`f` is strictly increasing on `(0,1)`.** -/
+theorem rootRat_strictMonoOn : StrictMonoOn rootRat (Ioo 0 1) := by
+  have hcont : ContinuousOn rootRat (Ioo 0 1) := by
+    have h : rootRat = fun y : ℝ => y^2 / ((1-y)^2 * (1 + 3*y^2 - y^3)) := rfl
+    rw [h]
+    exact ContinuousOn.div (by fun_prop) (by fun_prop)
+      (fun x hx => ne_of_gt (rootRat_denom_pos hx))
+  refine strictMonoOn_of_deriv_pos (convex_Ioo (0:ℝ) 1) hcont ?_
+  · intro u hu
+    rw [interior_Ioo] at hu
+    rw [deriv_rootRat_log hu]
+    have hp := rootRat_pos hu
+    have hL := logDeriv_ge_five hu
+    nlinarith
+
+/-! ## The root is unique -/
+
+/-- For `s ∈ (-1,0)` one has `s² ∈ (0,1)`. -/
+theorem sq_mem_Ioo {s : ℝ} (hs : s ∈ Ioo (-1) 0) : s^2 ∈ Ioo (0:ℝ) 1 := by
+  constructor
+  · have h := mul_pos (neg_pos.mpr hs.2) (neg_pos.mpr hs.2)
+    nlinarith
+  · have h1 : (0:ℝ) < 1 - s := by linarith [hs.2]
+    have h2 : (0:ℝ) < 1 + s := by linarith [hs.1]
+    nlinarith [mul_pos h1 h2]
+
+/-- The two factors in the denominator, positive on `(-1,0)`. -/
+theorem rootFactors_pos {s : ℝ} (hs : s ∈ Ioo (-1) 0) :
+    (0:ℝ) < (s^2 - 1)^2 * (3*s^4 - s^6 + 1) := by
+  have hspos : (0:ℝ) < s^2 := (sq_mem_Ioo hs).1
+  have hsq : s^2 < 1 := (sq_mem_Ioo hs).2
+  have hA : (0:ℝ) < (s^2 - 1)^2 := by
+    have : s^2 ≠ 1 := by nlinarith
+    positivity
+  have hfac : 3*s^4 - s^6 = s^4 * (3 - s^2) := by ring
+  have h4 : (0:ℝ) < s^4 := by
+    have h := pow_pos hspos 2
+    nlinarith
+  have h3 : (0:ℝ) < 3 - s^2 := by nlinarith
+  exact mul_pos hA (by nlinarith [mul_pos h4 h3])
+
+/-- **`E(s,-t) = 0` is `f(s²) = 24t²`** on `(-1,0)`. -/
+theorem root_iff {t : ℕ} {s : ℝ} (hs : s ∈ Ioo (-1) 0) :
+    E s (-(t:ℝ)) = 0 ↔ rootRat (s^2) = 24 * (t:ℝ)^2 := by
+  have hden : (0:ℝ) < (s^2 - 1)^2 * (3*s^4 - s^6 + 1) := rootFactors_pos hs
+  have hden' : (0:ℝ) < (1 - s^2)^2 * (1 + 3*(s^2)^2 - (s^2)^3) := by
+    have h : (1 - s^2)^2 * (1 + 3*(s^2)^2 - (s^2)^3)
+        = (s^2 - 1)^2 * (3*s^4 - s^6 + 1) := by ring
+    rw [h]; exact hden
+  have h4 : (s^2)^2 = s^4 := by ring
+  rw [E_eq']
+  constructor
+  · intro h
+    have hh : s^4 = 24*(t:ℝ)^2*((s^2-1)^2*(3*s^4-s^6+1)) := by linarith
+    unfold rootRat
+    rw [div_eq_iff (ne_of_gt hden'), h4]
+    linarith
+  · intro h
+    unfold rootRat at h
+    rw [div_eq_iff (ne_of_gt hden'), h4] at h
+    linarith
+
+/-- **The root in the paper's bracket is unique.** -/
+theorem exists_unique_root_grid (t : ℕ) (h1 : 1 ≤ t) (h2 : t ≤ 589) :
+    ∃! s ∈ Ioo ((-9999:ℝ)/10000) ((-1:ℝ)/10000), E s (-(t:ℝ)) = 0 := by
+  obtain ⟨s, hs, hE⟩ := exists_root_grid t h1 h2
+  refine ⟨s, ⟨hs, hE⟩, ?_⟩
+  rintro s' ⟨hs', hE'⟩
+  have hss : s ∈ Ioo (-1:ℝ) 0 := ⟨by linarith [hs.1], by linarith [hs.2]⟩
+  have hss' : s' ∈ Ioo (-1:ℝ) 0 := ⟨by linarith [hs'.1], by linarith [hs'.2]⟩
+  have e1 : rootRat (s^2) = 24*(t:ℝ)^2 := (root_iff hss).mp hE
+  have e2 : rootRat (s'^2) = 24*(t:ℝ)^2 := (root_iff hss').mp hE'
+  have heq : s^2 = s'^2 :=
+    rootRat_strictMonoOn.injOn (sq_mem_Ioo hss) (sq_mem_Ioo hss') (by rw [e1, e2])
+  have hneg : s < 0 := hss.2
+  have hneg' : s' < 0 := hss'.2
+  nlinarith [heq, hneg, hneg']
+
+/-- **`s2` is determined by its specification**: any root in the bracket is `s2 t`, so nothing
+depends on the choice inside `Classical.choose`. -/
+theorem s2_unique {t : ℕ} (h1 : 1 ≤ t) (h2 : t ≤ 589) {s : ℝ}
+    (hs : s ∈ Ioo ((-9999:ℝ)/10000) ((-1:ℝ)/10000)) (hE : E s (-(t:ℝ)) = 0) : s = s2 t := by
+  obtain ⟨u, ⟨hu, hEu⟩, huniq⟩ := exists_unique_root_grid t h1 h2
+  exact (huniq s ⟨hs, hE⟩).trans (huniq (s2 t) ⟨s2_mem t h1 h2, s2_isRoot t h1 h2⟩).symm
+
+/-- **`t ↦ |s2 t|` is strictly increasing.** -/
+theorem abs_s2_strictMono {t t' : ℕ} (h1 : 1 ≤ t) (h2 : t ≤ 589) (h1' : 1 ≤ t')
+    (h2' : t' ≤ 589) (htt : t < t') : |s2 t| < |s2 t'| := by
+  have hmem : s2 t ∈ Ioo (-1:ℝ) 0 := ⟨by linarith [(s2_mem t h1 h2).1],
+    by linarith [(s2_mem t h1 h2).2]⟩
+  have hmem' : s2 t' ∈ Ioo (-1:ℝ) 0 := ⟨by linarith [(s2_mem t' h1' h2').1],
+    by linarith [(s2_mem t' h1' h2').2]⟩
+  have e1 : rootRat ((s2 t)^2) = 24*(t:ℝ)^2 := (root_iff hmem).mp (s2_isRoot t h1 h2)
+  have e2 : rootRat ((s2 t')^2) = 24*(t':ℝ)^2 := (root_iff hmem').mp (s2_isRoot t' h1' h2')
+  have hlt : (t:ℝ)^2 < (t':ℝ)^2 := by
+    have ht : (t:ℝ) < (t':ℝ) := by exact_mod_cast htt
+    nlinarith [Nat.cast_nonneg (α := ℝ) t, Nat.cast_nonneg (α := ℝ) t']
+  have hmono : MonotoneOn rootRat (Ioo (0:ℝ) 1) := rootRat_strictMonoOn.monotoneOn
+  have hlt2 : (s2 t)^2 < (s2 t')^2 := by
+    by_contra hcon
+    rw [not_lt] at hcon
+    have hle := hmono (sq_mem_Ioo hmem') (sq_mem_Ioo hmem) hcon
+    rw [e2, e1] at hle
+    nlinarith
+  have habs : |s2 t| = Real.sqrt ((s2 t)^2) := (Real.sqrt_sq_eq_abs _).symm
+  have habs' : |s2 t'| = Real.sqrt ((s2 t')^2) := (Real.sqrt_sq_eq_abs _).symm
+  rw [habs, habs']
+  exact Real.sqrt_lt_sqrt (by positivity) hlt2
+
+/-- **A certificate for enclosures of `s2`.**  If `lo < hi` lie in the bracket and
+`E lo (-t) > 0 > E hi (-t)`, then `s2 t ∈ (lo, hi)` — by the intermediate value theorem together
+with uniqueness.  This is how a rational bracket, checked by `norm_num` on the polynomial `E`,
+becomes a certified enclosure of `s2 t`. -/
+theorem s2_mem_of_sign_change {t : ℕ} (h1 : 1 ≤ t) (h2 : t ≤ 589) {lo hi : ℝ}
+    (hlo : lo ∈ Ioo ((-9999:ℝ)/10000) ((-1:ℝ)/10000))
+    (hhi : hi ∈ Ioo ((-9999:ℝ)/10000) ((-1:ℝ)/10000))
+    (hlt : lo < hi) (hElo : 0 < E lo (-(t:ℝ))) (hEhi : E hi (-(t:ℝ)) < 0) :
+    s2 t ∈ Ioo lo hi := by
+  have hcont : ContinuousOn (fun s => E s (-(t:ℝ))) (Icc lo hi) := (continuous_E _).continuousOn
+  have hsub := intermediate_value_Ioo' (a := lo) (b := hi) (le_of_lt hlt) hcont
+  have hmem : (0:ℝ) ∈ Ioo (E hi (-(t:ℝ))) (E lo (-(t:ℝ))) := ⟨hEhi, hElo⟩
+  obtain ⟨s, hs, hEs⟩ := hsub hmem
+  have hsb : s ∈ Ioo ((-9999:ℝ)/10000) ((-1:ℝ)/10000) :=
+    ⟨by linarith [hlo.1, hs.1], by linarith [hhi.2, hs.2]⟩
+  rw [← s2_unique h1 h2 hsb hEs]
+  exact hs
+
+end FrequencyGrids

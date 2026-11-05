@@ -1,0 +1,51 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).  Unconditional part, item 6.
+
+# The `6n ± 1` filter
+
+Every prime greater than `3` is `≡ 1` or `≡ 5 (mod 6)`; the converse fails, as `25 = 6·4 + 1`
+shows.  This is the structural filter discussed in vf4 §10.
+-/
+import Mathlib
+
+namespace FrequencyGrids
+
+/-- **Every prime `> 3` is `±1` modulo `6`.** -/
+theorem prime_mod_six (p : ℕ) (hp : Nat.Prime p) (h3 : 3 < p) :
+    p % 6 = 1 ∨ p % 6 = 5 := by
+  have h6 : p % 6 < 6 := Nat.mod_lt p (by norm_num)
+  have h2 : p % 2 ≠ 0 := by
+    intro h
+    have hd : 2 ∣ p := by omega
+    rcases hp.eq_one_or_self_of_dvd 2 hd with h' | h' <;> omega
+  have h3' : p % 3 ≠ 0 := by
+    intro h
+    have hd : 3 ∣ p := by omega
+    rcases hp.eq_one_or_self_of_dvd 3 hd with h' | h' <;> omega
+  omega
+
+/-- The same statement in `ZMod 6`. -/
+theorem prime_zmod_six (p : ℕ) (hp : Nat.Prime p) (h3 : 3 < p) :
+    (p : ZMod 6) = 1 ∨ (p : ZMod 6) = 5 := by
+  have h := prime_mod_six p hp h3
+  rcases h with h | h
+  · left
+    rw [← Nat.cast_one (R := ZMod 6), ZMod.natCast_eq_natCast_iff, Nat.ModEq]
+    simpa using h
+  · right
+    rw [← Nat.cast_ofNat (R := ZMod 6) (n := 5), ZMod.natCast_eq_natCast_iff, Nat.ModEq]
+    simpa using h
+
+/-- **The converse fails**: `25 ≡ 1 (mod 6)` but `25` is not prime. -/
+theorem converse_fails : (25 : ℕ) % 6 = 1 ∧ ¬ Nat.Prime 25 := by
+  refine ⟨by norm_num, ?_⟩
+  intro h
+  have : 5 ∣ 25 := by norm_num
+  rcases h.eq_one_or_self_of_dvd 5 this with h1 | h1 <;> omega
+
+/-- The filter alone is not a primality test: some `n ≡ 1 (mod 6)` are composite. -/
+theorem filter_not_sufficient : ∃ n : ℕ, n % 6 = 1 ∧ ¬ Nat.Prime n :=
+  ⟨25, converse_fails.1, converse_fails.2⟩
+
+end FrequencyGrids

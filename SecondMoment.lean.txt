@@ -1,0 +1,103 @@
+/-
+Kakeya/SecondMoment.lean
+
+The abstract "second moment" (Cauchy–Schwarz) engine behind Córdoba's quantitative
+form of the planar Kakeya theorem.  If `T : ι → Set α` is a finite family of measurable
+sets in a measure space, then
+
+  (∑ i, μ (T i)) ^ 2 ≤ (∑ i, ∑ j, μ (T i ∩ T j)) * μ (⋃ i, T i).
+
+Feeding the pairwise intersection bounds for thin tubes into this inequality yields the
+lower bound `|⋃ T_i| ≳ 1 / log (1/δ)`.
+-/
+import Mathlib
+import Kakeya.Basic
+
+open scoped MeasureTheory ENNReal NNReal Topology
+open MeasureTheory Set Topology Finset
+
+namespace Kakeya
+
+/-- rpow arithmetic: passing from the Cauchy–Schwarz pairing to a squared bound. -/
+lemma rpow_half_sq (x : ℝ≥0∞) : (x ^ (1 / 2 : ℝ)) ^ (2 : ℝ) = x := by
+  rw [← ENNReal.rpow_mul]
+  norm_num
+
+lemma rpow_half_mul_self (a b : ℝ≥0∞) :
+    (a ^ (1 / 2 : ℝ) * b ^ (1 / 2 : ℝ)) ^ (2 : ℝ) = a * b := by
+  rw [ENNReal.mul_rpow_of_nonneg _ _ (by norm_num : (0 : ℝ) ≤ 2), rpow_half_sq, rpow_half_sq]
+
+/-- **Second-moment inequality.** For a finite family of measurable sets,
+`(∑ᵢ μ Tᵢ)² ≤ (∑ᵢⱼ μ (Tᵢ ∩ Tⱼ)) · μ (⋃ᵢ Tᵢ)`. -/
+theorem second_moment {α : Type*} [MeasurableSpace α] (μ : Measure α) {ι : Type*} [Fintype ι]
+    (T : ι → Set α) (hT : ∀ i, MeasurableSet (T i)) :
+    (∑ i, μ (T i)) ^ 2 ≤ (∑ i, ∑ j, μ (T i ∩ T j)) * μ (⋃ i, T i) := by
+  classical
+  set s : Set α := ⋃ i, T i with hs
+  have hs_meas : MeasurableSet s := by rw [hs]; exact MeasurableSet.iUnion hT
+  set g : α → ℝ≥0∞ := fun a => ∑ i, (T i).indicator (fun _ => (1 : ℝ≥0∞)) a with hgdef
+  have hfi : ∀ i, Measurable ((T i).indicator (fun _ => (1 : ℝ≥0∞))) :=
+    fun i => measurable_const.indicator (hT i)
+  have hg_meas : AEMeasurable g μ := by
+    rw [hgdef]
+    simpa only [Finset.sum_apply] using (Finset.measurable_sum _ (fun i _ => hfi i)).aemeasurable
+  have h1s_meas : AEMeasurable (s.indicator (fun _ => (1 : ℝ≥0∞))) μ :=
+    (measurable_const.indicator hs_meas).aemeasurable
+  have hg1 : ∫⁻ a, g a ∂μ = ∑ i, μ (T i) := by
+    rw [hgdef]
+    rw [lintegral_finsetSum Finset.univ (fun i _ => hfi i)]
+    exact Finset.sum_congr rfl (fun i _ => by
+      rw [lintegral_indicator (hT i), setLIntegral_one])
+  have hg2 : ∫⁻ a, (g a) ^ (2 : ℝ) ∂μ = ∑ i, ∑ j, μ (T i ∩ T j) := by
+    have hpt : ∀ a, (g a) ^ (2 : ℝ) =
+        ∑ i, ∑ j, (T i ∩ T j).indicator (fun _ => (1 : ℝ≥0∞)) a := by
+      intro a
+      rw [hgdef, ENNReal.rpow_two, pow_two, Finset.sum_mul_sum]
+      refine Finset.sum_congr rfl (fun i _ => Finset.sum_congr rfl (fun j _ => ?_))
+      by_cases h1 : a ∈ T i <;> by_cases h2 : a ∈ T j <;>
+        simp [Set.indicator_of_mem, Set.indicator_of_notMem, Set.mem_inter_iff, h1, h2]
+    rw [lintegral_congr_ae (Filter.Eventually.of_forall hpt), lintegral_finsetSum Finset.univ]
+    · refine Finset.sum_congr rfl (fun i _ => ?_)
+      rw [lintegral_finsetSum Finset.univ
+        (fun j _ => measurable_const.indicator (hT i |>.inter (hT j)))]
+      exact Finset.sum_congr rfl (fun j _ => by
+        rw [lintegral_indicator (hT i |>.inter (hT j)), setLIntegral_one])
+    · exact fun i _ => Finset.measurable_sum _
+        (fun j _ => measurable_const.indicator (hT i |>.inter (hT j)))
+  have hsupp : ∀ a, a ∉ s → g a = 0 := by
+    intro a ha
+    rw [hgdef]
+    refine Finset.sum_eq_zero (fun i _ => ?_)
+    rw [Set.indicator_of_notMem]
+    exact fun h => ha (by rw [hs]; exact mem_iUnion.mpr ⟨i, h⟩)
+  have hgmul_pt : ∀ a, g a * s.indicator (fun _ => (1 : ℝ≥0∞)) a = g a := by
+    intro a
+    by_cases ha : a ∈ s
+    · rw [Set.indicator_of_mem ha, mul_one]
+    · rw [Set.indicator_of_notMem ha, mul_zero, hsupp a ha]
+  have hgmul : ∫⁻ a, g a * s.indicator (fun _ => (1 : ℝ≥0∞)) a ∂μ = ∫⁻ a, g a ∂μ :=
+    lintegral_congr_ae (Filter.Eventually.of_forall hgmul_pt)
+  have h1s2_pt : ∀ a, (s.indicator (fun _ => (1 : ℝ≥0∞)) a) ^ (2 : ℝ)
+      = s.indicator (fun _ => (1 : ℝ≥0∞)) a := by
+    intro a
+    by_cases ha : a ∈ s
+    · rw [Set.indicator_of_mem ha, ENNReal.one_rpow]
+    · rw [Set.indicator_of_notMem ha,
+        ENNReal.zero_rpow_of_pos (by norm_num : (0 : ℝ) < 2)]
+  have h1s2 : ∫⁻ a, (s.indicator (fun _ => (1 : ℝ≥0∞)) a) ^ (2 : ℝ) ∂μ = μ s := by
+    rw [lintegral_congr_ae (Filter.Eventually.of_forall h1s2_pt),
+      lintegral_indicator hs_meas, setLIntegral_one]
+  have hpq : (2 : ℝ).HolderConjugate 2 :=
+    Real.holderConjugate_iff.mpr ⟨by norm_num, by norm_num⟩
+  have holder := ENNReal.lintegral_mul_le_Lp_mul_Lq μ hpq hg_meas h1s_meas
+  simp only [Pi.mul_apply] at holder
+  rw [hgmul, hg2, h1s2] at holder
+  rw [← ENNReal.rpow_two]
+  calc (∑ i, μ (T i)) ^ (2 : ℝ)
+      = (∫⁻ a, g a ∂μ) ^ (2 : ℝ) := by rw [hg1]
+    _ ≤ ((∑ i, ∑ j, μ (T i ∩ T j)) ^ (1 / 2 : ℝ) * (μ s) ^ (1 / 2 : ℝ)) ^ (2 : ℝ) :=
+        ENNReal.rpow_le_rpow holder (by norm_num)
+    _ = (∑ i, ∑ j, μ (T i ∩ T j)) * μ s := rpow_half_mul_self _ _
+    _ = (∑ i, ∑ j, μ (T i ∩ T j)) * μ (⋃ i, T i) := by rw [← hs]
+
+end Kakeya

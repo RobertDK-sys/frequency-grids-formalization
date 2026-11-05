@@ -1,0 +1,152 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).
+
+# An explicit lower bound for the off-diagonal Gram entries
+
+vf4's `N_off` compares the row sums of `|G_ij(X)|` with `|G_jj(X)| = H_X`.  A single close
+neighbour already forces `r_j(X) > δ`.  This file proves that, with no asymptotic notation and
+no Euler–Maclaurin: only the termwise bound `cos t ≥ 1/50` for `|t| ≤ 1.55` and the harmonic
+diagonal.
+
+For `|θ| log X ≤ 1.55` one has `Re Σ_{n≤⌊X⌋} n^{-1+iθ} = Σ cos(θ log n)/n ≥ (1/50) H_⌊X⌋`,
+because `|θ log n| ≤ |θ| log X ≤ 1.55 < π/2` and `cos` decreases on `[0, π/2]`.
+-/
+import FrequencyGrids.GeneralGram
+
+set_option linter.unusedSectionVars false
+set_option maxRecDepth 10000
+set_option maxHeartbeats 2000000
+
+namespace FrequencyGrids
+
+open Complex
+
+/-- `cos 1.55 ≥ 1/50`.  (`1.55 < π/2`, and `sin (π/2 − 1.55) ≥ (π/2 − 1.55) − (π/2 − 1.55)³/6`
+by the elementary Taylor bound `Real.sin_gt_sub_cube`.) -/
+theorem cos_155_ge : (1 / 50 : ℝ) ≤ Real.cos 1.55 := by
+  have hπ1 : (3.1415 : ℝ) < Real.pi := Real.pi_gt_d4
+  have hπ2 : Real.pi < 3.15 := Real.pi_lt_d2
+  rw [← Real.sin_pi_div_two_sub 1.55]
+  set y := Real.pi / 2 - 1.55 with hy
+  have hy0 : 0 < y := by simp only [hy]; linarith
+  have hy_lo : 0.0207 ≤ y := by simp only [hy]; linarith
+  have hy_hi : y ≤ 0.025 := by simp only [hy]; linarith
+  have hcube : y ^ 3 / 6 ≤ 0.000003 := by
+    have h3 : y ^ 3 ≤ 0.025 ^ 3 := pow_le_pow_left₀ (le_of_lt hy0) hy_hi 3
+    nlinarith
+  have hsin := Real.sin_gt_sub_cube hy0
+  linarith
+
+/-- The real part of one Gram summand: `Re (n^{-1-iθ}) = n⁻¹ cos(θ log n)`. -/
+theorem re_cpow_gram (n : ℕ) (hn : 1 ≤ n) (θ : ℝ) :
+    (((n : ℂ)) ^ (-(1 : ℂ) - (θ : ℂ) * Complex.I)).re
+      = ((n : ℝ))⁻¹ * Real.cos (θ * Real.log n) := by
+  have hnr : (0 : ℝ) < n := by exact_mod_cast hn
+  have hbase : ((n : ℂ)) = (((n : ℝ)) : ℂ) := by push_cast; rfl
+  have hn0 : (((n : ℝ)) : ℂ) ≠ 0 := by
+    simp only [Ne, Complex.ofReal_eq_zero]
+    linarith
+  rw [hbase, Complex.cpow_def_of_ne_zero hn0, ← Complex.ofReal_log hnr.le]
+  have hsplit : ((Real.log n : ℝ) : ℂ) * (-(1 : ℂ) - (θ : ℂ) * Complex.I)
+      = -(((Real.log n : ℝ)) : ℂ) + ((-(θ * Real.log n) : ℝ) : ℂ) * Complex.I := by
+    push_cast; ring
+  rw [hsplit, Complex.exp_add]
+  have e1 : Complex.exp (-((Real.log n : ℝ) : ℂ)) = ((((n : ℝ))⁻¹ : ℝ) : ℂ) := by
+    rw [← Complex.ofReal_neg, ← Complex.ofReal_exp, Real.exp_neg, Real.exp_log hnr]
+  rw [e1, Complex.exp_ofReal_mul_I]
+  simp only [Complex.mul_re, Complex.ofReal_re, Complex.ofReal_im, Complex.add_re,
+    Complex.add_im, Complex.mul_im, Complex.I_re, Complex.I_im, Real.cos_neg]
+  ring
+
+variable {ι : Type*} [Fintype ι] [DecidableEq ι]
+
+/-- **The real part of a Gram entry** as a cosine sum. -/
+theorem re_gramOf (f : ι → ℝ) (X : ℝ) (i j : ι) :
+    (gramOf f X i j).re
+      = ∑ n ∈ Finset.Icc 1 ⌊X⌋₊,
+          ((n : ℝ))⁻¹ * Real.cos ((f i - f j) * Real.log n) := by
+  unfold gramOf
+  rw [Complex.re_sum]
+  refine Finset.sum_congr rfl fun n hn => ?_
+  exact re_cpow_gram n (Finset.mem_Icc.mp hn).1 (f i - f j)
+
+/-- **The explicit estimate.**  If `|f i - f j| · log X ≤ 1.55` then the real part of the Gram
+entry is at least `H_⌊X⌋/50`. -/
+theorem re_gramOf_ge (f : ι → ℝ) (X : ℝ) (hX : 1 ≤ X) (i j : ι)
+    (hθ : |f i - f j| * Real.log X ≤ 1.55) :
+    (1 / 50) * harmonicR ⌊X⌋₊ ≤ (gramOf f X i j).re := by
+  have hπ : (1.55 : ℝ) ≤ Real.pi := by
+    have := Real.pi_gt_three
+    linarith
+  rw [re_gramOf, harmonicR, Finset.mul_sum]
+  refine Finset.sum_le_sum fun n hn => ?_
+  obtain ⟨hn1, hnX⟩ := Finset.mem_Icc.mp hn
+  have hnr : (0 : ℝ) < n := by exact_mod_cast hn1
+  have hlog_le : Real.log n ≤ Real.log X := by
+    refine Real.log_le_log hnr ?_
+    have h1 : (n : ℝ) ≤ (⌊X⌋₊ : ℝ) := by exact_mod_cast hnX
+    have h2 : (⌊X⌋₊ : ℝ) ≤ X := Nat.floor_le (by linarith)
+    linarith
+  have hlogn : (0 : ℝ) ≤ Real.log n := Real.log_nonneg (by exact_mod_cast hn1)
+  have habs : |(f i - f j) * Real.log n| ≤ 1.55 := by
+    rw [abs_mul, abs_of_nonneg hlogn]
+    calc |f i - f j| * Real.log n ≤ |f i - f j| * Real.log X := by
+          exact mul_le_mul_of_nonneg_left hlog_le (abs_nonneg _)
+      _ ≤ 1.55 := hθ
+  have hcos : (1 / 50 : ℝ) ≤ Real.cos ((f i - f j) * Real.log n) := by
+    have h := Real.cos_le_cos_of_nonneg_of_le_pi (abs_nonneg _) hπ habs
+    rw [Real.cos_abs] at h
+    exact cos_155_ge.trans h
+  have hinv : (0 : ℝ) < ((n : ℝ))⁻¹ := by positivity
+  calc (1 / 50) * ((n : ℝ))⁻¹ = ((n : ℝ))⁻¹ * (1 / 50) := by ring
+    _ ≤ ((n : ℝ))⁻¹ * Real.cos ((f i - f j) * Real.log n) :=
+        mul_le_mul_of_nonneg_left hcos (le_of_lt hinv)
+
+/-- **Norm form**: `‖G_ij(X)‖ ≥ H_⌊X⌋/50` whenever the frequencies are within `1.55/log X`. -/
+theorem norm_gramOf_ge (f : ι → ℝ) (X : ℝ) (hX : 1 ≤ X) (i j : ι)
+    (hθ : |f i - f j| * Real.log X ≤ 1.55) :
+    (1 / 50) * harmonicR ⌊X⌋₊ ≤ ‖gramOf f X i j‖ := by
+  refine (re_gramOf_ge f X hX i j hθ).trans ?_
+  have h1 : (gramOf f X i j).re ≤ ‖gramOf f X i j‖ := Complex.re_le_norm _
+  linarith
+
+/-! ## The consequence for `r_j` and for `N_off` -/
+
+/-- **`r_j ≥ 1/50`** as soon as some *other* mode is within `1.55 / log X` in frequency: one
+close neighbour already supplies the whole numerator against the harmonic denominator. -/
+theorem offRatio_ge_of_close (T X : ℝ) (hX : 1 ≤ X) (j : ↥(modeSet T))
+    (h : ∃ i ∈ Finset.univ.erase j, |modeB T i - modeB T j| * Real.log X ≤ 1.55) :
+    (1 / 50 : ℝ) ≤ offRatio T X j := by
+  obtain ⟨i, hi, hθ⟩ := h
+  have hfloor : (1 : ℕ) ≤ ⌊X⌋₊ := Nat.le_floor (by push_cast; exact hX)
+  have hH : (0 : ℝ) < harmonicR ⌊X⌋₊ := harmonicR_pos hfloor
+  have hnum : (1 / 50) * harmonicR ⌊X⌋₊ ≤ ‖gramMatrix T X i j‖ := by
+    rw [gramMatrix_eq_gramOf]
+    exact norm_gramOf_ge (modeB T) X hX i j hθ
+  have hden : ‖gramMatrix T X j j‖ = harmonicR ⌊X⌋₊ := by
+    rw [gramMatrix_diag, Complex.norm_real, Real.norm_eq_abs, abs_of_pos hH]
+  have hle : ‖gramMatrix T X i j‖ ≤ offSum T X j :=
+    Finset.single_le_sum (f := fun i => ‖gramMatrix T X i j‖) (fun _ _ => norm_nonneg _) hi
+  unfold offRatio
+  rw [hden, le_div_iff₀ hH]
+  linarith
+
+/-- **`N_off` counts every mode**, for every tolerance `δ < 1/50`, provided each mode has a
+neighbour within `1.55 / log X`.  This is the §6.4.8 statement reduced to a finite geometric
+condition on the modes. -/
+theorem Noff_eq_card_of_close (T X δ : ℝ) (hX : 1 ≤ X) (hδ : δ < 1 / 50)
+    (h : ∀ j : ↥(modeSet T), ∃ i ∈ Finset.univ.erase j,
+      |modeB T i - modeB T j| * Real.log X ≤ 1.55) :
+    Noff T X δ = (modeSet T).card := by
+  refine Noff_eq_card_of_forall_gt T X δ fun j => ?_
+  have h1 := offRatio_ge_of_close T X hX j (h j)
+  linarith
+
+/-- The closeness condition in divided form (for `X > 1`). -/
+theorem close_iff_div (T X : ℝ) (hX : 1 < X) (i j : ↥(modeSet T)) :
+    |modeB T i - modeB T j| * Real.log X ≤ 1.55
+      ↔ |modeB T i - modeB T j| ≤ 1.55 / Real.log X := by
+  rw [le_div_iff₀ (Real.log_pos hX)]
+
+end FrequencyGrids

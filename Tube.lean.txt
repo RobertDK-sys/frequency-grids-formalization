@@ -1,0 +1,183 @@
+/-
+Kakeya/Tube.lean
+
+Thin tubes in `ℝ² = Fin 2 → ℝ`: the rotation, the standard rectangle, the tube, its measure,
+its containment in a strip, and (below) the two-tube intersection bound.
+-/
+import Mathlib
+import Kakeya.Basic
+import Kakeya.Strip
+
+open scoped MeasureTheory ENNReal NNReal Topology
+open MeasureTheory Set Topology
+
+namespace Kakeya
+
+/-- Clockwise rotation by `θ`, as the matrix `!![cos θ, sin θ; -sin θ, cos θ]`. -/
+noncomputable def rotM (θ : ℝ) : Matrix (Fin 2) (Fin 2) ℝ :=
+  !![Real.cos θ, Real.sin θ; -Real.sin θ, Real.cos θ]
+
+/-- The rotation as a linear map. -/
+noncomputable def rotLin (θ : ℝ) : (Fin 2 → ℝ) →ₗ[ℝ] (Fin 2 → ℝ) := (rotM θ).toLin'
+
+lemma rotLin_apply (θ : ℝ) (x : Fin 2 → ℝ) :
+    rotLin θ x = ![Real.cos θ * x 0 + Real.sin θ * x 1,
+                   -Real.sin θ * x 0 + Real.cos θ * x 1] := by
+  rw [rotLin, Matrix.toLin'_apply]
+  ext i; fin_cases i <;>
+    simp [rotM, Matrix.mulVec, dotProduct, Fin.sum_univ_two]
+
+lemma det_rotLin (θ : ℝ) : LinearMap.det (rotLin θ) = 1 := by
+  rw [rotLin, LinearMap.det_toLin', Matrix.det_fin_two]
+  simp only [rotM, Fin.isValue, Matrix.of_apply, Matrix.cons_val', Matrix.cons_val_fin_one,
+    Matrix.cons_val_zero, Matrix.cons_val_one]
+  ring_nf
+  rw [Real.cos_sq_add_sin_sq]
+
+lemma volume_rotLin (θ : ℝ) (A : Set (Fin 2 → ℝ)) : volume (rotLin θ '' A) = volume A := by
+  rw [Measure.addHaar_image_linearMap (μ := volume) (f := rotLin θ) A, det_rotLin]
+  simp
+
+lemma volume_image_add (c : Fin 2 → ℝ) (A : Set (Fin 2 → ℝ)) :
+    volume ((fun x => x + c) '' A) = volume A := by
+  have key : (fun x : Fin 2 → ℝ => x + c) '' A = (fun x : Fin 2 → ℝ => -c + x) ⁻¹' A := by
+    ext y; constructor
+    · rintro ⟨x, hx, rfl⟩; simpa using hx
+    · intro hy
+      exact ⟨-c + y, hy, by abel⟩
+  rw [key]
+  exact measure_preimage_add volume (-c) A
+
+/-- The standard rectangle: length `1` along the first axis, width `2h` along the second. -/
+def rect (h : ℝ) : Set (Fin 2 → ℝ) := Icc ![-(1/2 : ℝ), -h] ![(1/2 : ℝ), h]
+
+lemma volume_rect (h : ℝ) : volume (rect h) = ENNReal.ofReal (2 * h) := by
+  rw [rect, Real.volume_Icc_pi, Fin.prod_univ_two]
+  simp only [Fin.isValue, Matrix.cons_val_zero, Matrix.cons_val_one]
+  rw [show (1/2 : ℝ) - -(1/2) = 1 by norm_num, ENNReal.ofReal_one, one_mul,
+    show h - -h = 2 * h by ring]
+
+/-- The tube of length `1`, width `2h`, direction `θ`, centred at `a`. -/
+def tube (h θ : ℝ) (a : Fin 2 → ℝ) : Set (Fin 2 → ℝ) :=
+  (fun p => rotLin θ (p - a)) ⁻¹' rect h
+
+lemma tube_eq (h θ : ℝ) (a : Fin 2 → ℝ) :
+    tube h θ a = rotLin θ ⁻¹' ((fun y => y + rotLin θ a) '' rect h) := by
+  ext p
+  simp only [tube, mem_preimage]
+  constructor
+  · intro hp
+    exact ⟨rotLin θ p - rotLin θ a, by rw [← map_sub]; exact hp, by abel⟩
+  · rintro ⟨y, hy, hy'⟩
+    beta_reduce at hy'
+    rw [map_sub, ← hy', add_sub_cancel_right]
+    exact hy
+
+lemma volume_tube (h θ : ℝ) (a : Fin 2 → ℝ) :
+    volume (tube h θ a) = ENNReal.ofReal (2 * h) := by
+  rw [tube_eq, Measure.addHaar_preimage_linearMap (μ := volume) (f := rotLin θ)
+    (by rw [det_rotLin]; norm_num), det_rotLin]
+  simp only [inv_one, abs_one, ENNReal.ofReal_one, one_mul]
+  rw [volume_image_add, volume_rect]
+
+/-- The rotation is continuous. -/
+lemma continuous_rotLin (θ : ℝ) : Continuous (rotLin θ) := by fun_prop
+
+lemma measurableSet_rect (h : ℝ) : MeasurableSet (rect h) := by
+  rw [rect]
+  exact measurableSet_Icc
+
+/-- A tube is a measurable set. -/
+lemma measurableSet_tube (h θ : ℝ) (a : Fin 2 → ℝ) : MeasurableSet (tube h θ a) := by
+  rw [tube, rect]
+  exact measurableSet_Icc.preimage
+    ((continuous_rotLin θ).comp (continuous_id.sub continuous_const)).measurable
+
+/-- A tube lies in the strip of half-width `h` whose normal is `(-sin θ, cos θ)`. -/
+lemma tube_subset_astrip (h θ : ℝ) (a : Fin 2 → ℝ) :
+    tube h θ a ⊆ astrip (-Real.sin θ) (Real.cos θ) h
+      (-Real.sin θ * a 0 + Real.cos θ * a 1) := by
+  intro p hp
+  have hp' : rotLin θ (p - a) ∈ rect h := hp
+  rw [rect, mem_Icc] at hp'
+  have h2 : |(rotLin θ (p - a)) 1| ≤ h := by
+    refine abs_le.mpr ⟨?_, ?_⟩
+    · simpa using hp'.1 1
+    · simpa using hp'.2 1
+  rw [rotLin_apply] at h2
+  simp only [Fin.isValue, Matrix.cons_val_one, Pi.sub_apply] at h2
+  show |-Real.sin θ * p 0 + Real.cos θ * p 1
+      - (-Real.sin θ * a 0 + Real.cos θ * a 1)| ≤ h
+  rw [show -Real.sin θ * p 0 + Real.cos θ * p 1
+        - (-Real.sin θ * a 0 + Real.cos θ * a 1)
+      = -Real.sin θ * (p 0 - a 0) + Real.cos θ * (p 1 - a 1) by ring]
+  exact h2
+
+/-- Composition of rotations. -/
+lemma rotLin_comp (α β : ℝ) (x : Fin 2 → ℝ) :
+    rotLin α (rotLin β x) = rotLin (α + β) x := by
+  rw [rotLin_apply α (rotLin β x), rotLin_apply β x, rotLin_apply (α + β) x]
+  ext i; fin_cases i <;>
+  · simp only [Fin.isValue, Matrix.cons_val_zero, Matrix.cons_val_one]
+    rw [Real.cos_add, Real.sin_add]
+    ring_nf
+
+lemma mem_rect_iff (h : ℝ) (v : Fin 2 → ℝ) :
+    v ∈ rect h ↔ |v 0| ≤ 1 / 2 ∧ |v 1| ≤ h := by
+  rw [rect, mem_Icc]
+  constructor
+  · rintro ⟨h1, h2⟩
+    exact ⟨abs_le.mpr ⟨by simpa using h1 0, by simpa using h2 0⟩,
+      abs_le.mpr ⟨by simpa using h1 1, by simpa using h2 1⟩⟩
+  · rintro ⟨h1, h2⟩
+    refine ⟨fun i => ?_, fun i => ?_⟩
+    · fin_cases i
+      · simpa using (abs_le.mp h1).1
+      · simpa using (abs_le.mp h2).1
+    · fin_cases i
+      · simpa using (abs_le.mp h1).2
+      · simpa using (abs_le.mp h2).2
+
+lemma rotLin_zero (x : Fin 2 → ℝ) : rotLin 0 x = x := by
+  rw [rotLin_apply]
+  ext i; fin_cases i <;> simp
+
+/-- After rotating by `θ`, the first tube becomes horizontal and the second has normal
+`(-sin (φ-θ), cos (φ-θ))`. -/
+lemma tube_inter_subset {h θ φ : ℝ} (a b : Fin 2 → ℝ) :
+    rotLin θ '' (tube h θ a ∩ tube h φ b) ⊆
+      hstrip h ((rotLin θ a) 1) ∩
+        astrip (-Real.sin (φ - θ)) (Real.cos (φ - θ)) h ((rotLin φ b) 1) := by
+  rintro q ⟨p, ⟨hp1, hp2⟩, rfl⟩
+  constructor
+  · have h2 : |(rotLin θ (p - a)) 1| ≤ h := ((mem_rect_iff h _).mp hp1).2
+    rw [map_sub] at h2
+    show |(rotLin θ p) 1 - (rotLin θ a) 1| ≤ h
+    simpa using h2
+  · have h2 : |(rotLin φ (p - b)) 1| ≤ h := ((mem_rect_iff h _).mp hp2).2
+    have hpq : rotLin (-θ) (rotLin θ p) = p := by
+      rw [rotLin_comp (-θ) θ p, neg_add_cancel, rotLin_zero]
+    have hsub : rotLin φ (p - b) = rotLin (φ - θ) (rotLin θ p) - rotLin φ b := by
+      rw [map_sub]
+      conv_lhs => rw [← hpq]
+      rw [rotLin_comp]
+      ring_nf
+    rw [hsub] at h2
+    rw [rotLin_apply] at h2
+    simp only [Fin.isValue, Matrix.cons_val_one, Pi.sub_apply] at h2
+    exact h2
+
+/-- **Two-tube bound.** Two tubes of length `1` and width `2h` whose directions differ by
+`ψ` (with `sin ψ ≠ 0`) meet in a set of measure at most `2h · 2(h + |cos ψ| h)/|sin ψ|`. -/
+lemma volume_tube_inter_le {h θ φ : ℝ} (a b : Fin 2 → ℝ)
+    (hne : Real.sin (φ - θ) ≠ 0) (hh : 0 ≤ h) :
+    volume (tube h θ a ∩ tube h φ b)
+      ≤ ENNReal.ofReal (2 * ((h + |Real.cos (φ - θ)| * h) / |Real.sin (φ - θ)|) * (2 * h)) := by
+  rw [← volume_rotLin θ (tube h θ a ∩ tube h φ b)]
+  refine (measure_mono (tube_inter_subset a b)).trans ?_
+  have := volume_hstrip_inter_astrip (h := h) (a := -Real.sin (φ - θ))
+    (b := Real.cos (φ - θ)) (t := (rotLin θ a) 1) (u := (rotLin φ b) 1)
+    (by simpa using hne) hh
+  simpa using this
+
+end Kakeya

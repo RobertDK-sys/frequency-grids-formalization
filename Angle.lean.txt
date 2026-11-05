@@ -1,0 +1,94 @@
+import Mathlib
+import Kakeya.Harmonic
+
+open MeasureTheory Set
+
+namespace Kakeya
+
+lemma abs_sin_pi_div_lower {N : ℕ} (hN : 0 < N) {x : ℝ} (hx0 : 0 ≤ x) (hx1 : x ≤ N) :
+    2 * min x (N - x) / N ≤ Real.sin (Real.pi * x / N) := by
+  have hN' : (0 : ℝ) < (N : ℝ) := by exact_mod_cast hN
+  by_cases h : 2 * x ≤ N
+  · rw [min_eq_left (by linarith)]
+    have h1 : 0 ≤ Real.pi * x / N := by positivity
+    have h2 : Real.pi * x / N ≤ Real.pi / 2 := by
+      rw [div_le_iff₀ hN']; nlinarith [Real.pi_pos]
+    have hsin := Real.mul_le_sin h1 h2
+    have he : 2 / Real.pi * (Real.pi * x / N) = 2 * x / N := by
+      field_simp
+    linarith [hsin, he.le, he.ge]
+  · rw [not_le] at h
+    rw [min_eq_right (by linarith)]
+    have hy0 : 0 ≤ Real.pi * (N - x) / N := by positivity
+    have hy1 : Real.pi * (N - x) / N ≤ Real.pi / 2 := by
+      rw [div_le_iff₀ hN']; nlinarith [Real.pi_pos, h]
+    have hsin := Real.mul_le_sin hy0 hy1
+    have heq : Real.sin (Real.pi * x / N) = Real.sin (Real.pi * (N - x) / N) := by
+      have harg : Real.pi * x / N = Real.pi - Real.pi * (N - x) / N := by
+        field_simp; ring
+      rw [harg, Real.sin_pi_sub]
+    rw [heq]
+    have he : 2 / Real.pi * (Real.pi * (N - x) / N) = 2 * (N - x) / N := by field_simp
+    linarith [hsin, he.le, he.ge]
+
+
+/-- The `|sin|` of the angle between two directions dominates `2·min(dd, N−dd)/N`, where `dd`
+is the (ordinary, non-circular) index distance. -/
+lemma sin_abs_lower {N : ℕ} (hN : 0 < N) {m : ℝ} (hm : |m| ≤ N) :
+    2 * min |m| (N - |m|) / N ≤ |Real.sin (Real.pi * m / N)| := by
+  have hN' : (0 : ℝ) < (N : ℝ) := by exact_mod_cast hN
+  have hsin_nn : ∀ y : ℝ, 0 ≤ y → y ≤ N → 0 ≤ Real.sin (Real.pi * y / N) := by
+    intro y hy0 hyN
+    refine Real.sin_nonneg_of_nonneg_of_le_pi ?_ ?_
+    · positivity
+    · rw [div_le_iff₀ hN']; nlinarith [Real.pi_pos, hyN]
+  have key : ∀ y : ℝ, 0 ≤ y → y ≤ N →
+      2 * min y (N - y) / N ≤ |Real.sin (Real.pi * y / N)| := by
+    intro y hy0 hyN
+    have h := abs_sin_pi_div_lower hN hy0 hyN
+    rw [abs_of_nonneg (hsin_nn y hy0 hyN)]
+    exact h
+  by_cases hm0 : 0 ≤ m
+  · rw [abs_of_nonneg hm0]
+    exact key m hm0 (abs_le.mp hm).2
+  · rw [not_le] at hm0
+    have hneg : 0 ≤ -m := by linarith
+    have hnegN : -m ≤ N := by linarith [(abs_le.mp hm).1]
+    have habs : |m| = |-m| := by rw [abs_neg]
+    have hsin : |Real.sin (Real.pi * m / N)| = |Real.sin (Real.pi * (-m) / N)| := by
+      rw [show Real.pi * m / N = -(Real.pi * (-m) / N) by ring, Real.sin_neg, abs_neg]
+    rw [habs, hsin, abs_of_nonneg hneg]
+    exact key (-m) hneg hnegN
+
+
+/-- For two distinct directions of the regular `N`-gon, the angle is not a multiple of `π`. -/
+lemma sin_pi_div_fin_ne {N : ℕ} (hN : 0 < N) {i j : Fin N} (hij : i ≠ j) :
+    Real.sin (Real.pi * ((j : ℝ) - (i : ℝ)) / N) ≠ 0 := by
+  intro h0
+  have hN' : (0 : ℝ) < (N : ℝ) := by exact_mod_cast hN
+  set m : ℝ := (j : ℝ) - (i : ℝ) with hm
+  have hi1 : (i : ℝ) < N := by exact_mod_cast i.isLt
+  have hj1 : (j : ℝ) < N := by exact_mod_cast j.isLt
+  have hi0 : (0 : ℝ) ≤ (i : ℝ) := Nat.cast_nonneg _
+  have hj0 : (0 : ℝ) ≤ (j : ℝ) := Nat.cast_nonneg _
+  have hm0 : m ≠ 0 := by
+    intro h
+    apply hij
+    have : (j : ℝ) = (i : ℝ) := by rw [hm] at h; linarith
+    exact Fin.ext (by exact_mod_cast this.symm)
+  have hi2 : (i : ℝ) ≤ (N : ℝ) - 1 := by
+    have hnat : (i : ℕ) + 1 ≤ N := i.isLt
+    have : ((i : ℕ) : ℝ) + 1 ≤ (N : ℝ) := by exact_mod_cast hnat
+    linarith
+  have hj2 : (j : ℝ) ≤ (N : ℝ) - 1 := by
+    have hnat : (j : ℕ) + 1 ≤ N := j.isLt
+    have : ((j : ℕ) : ℝ) + 1 ≤ (N : ℝ) := by exact_mod_cast hnat
+    linarith
+  have hmN1 : |m| ≤ (N : ℝ) - 1 := by rw [hm, abs_le]; constructor <;> linarith
+  have hmpos : 0 < |m| := abs_pos.mpr hm0
+  have hmin : 0 < min |m| ((N : ℝ) - |m|) := lt_min hmpos (by linarith)
+  have hlow := sin_abs_lower hN (m := m) (by linarith [hmN1])
+  rw [h0, abs_zero] at hlow
+  have hpos : 0 < 2 * min |m| ((N : ℝ) - |m|) / N := div_pos (mul_pos two_pos hmin) hN'
+  linarith
+

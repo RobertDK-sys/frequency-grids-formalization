@@ -1,0 +1,1228 @@
+/-
+Kakeya/Cover.lean
+
+The multi-scale covering argument (the Córdoba route to the planar Kakeya theorem).
+
+The main results of this file are
+
+* `volume_biUnion_closedBall_image_le` and `volume_cthickening_image_le` — a subset of a segment of
+  `1`-dimensional length `λ` has an `r`-neighbourhood of area at least `2 r λ`; this converts the
+  one-dimensional covering of a Kakeya segment into a lower bound for the area of its intersection
+  with a tube;
+* `cover_setup` — the scale decomposition of an arbitrary small-diameter countable cover, the
+  disjoint refinement into threshold layers `Hs k`, and the one-dimensional coverage inequality
+  `3/4 ≤ ∑ k, lam k θ`;
+* `cover_sum_bound_core` — the multi-scale counting bound, assembling the discrete operator bound
+  of `Kakeya.Operator` with the direction-circle pigeonhole;
+* `cover_sum_bound` — the resulting statement consumed by `Kakeya.Hausdorff`: for every `d < 2`
+  there is `c ≠ 0` with `∑ₙ (ediam (t n)) ^ d ≥ c` for *every* countable cover `t` of a Kakeya set
+  by sets of diameter at most `1/16`.
+
+The final assembly into `dimH E = 2` is in `Kakeya.Main`.
+-/
+
+import Mathlib
+import Kakeya.Hausdorff
+import Kakeya.Operator
+import Kakeya.Tube
+
+open scoped MeasureTheory ENNReal NNReal Topology BigOperators
+open MeasureTheory Set Topology Metric Finset
+
+namespace Kakeya
+
+/-! ### Elementary sup-norm computations in `Fin 2 → ℝ` -/
+
+lemma norm_pair_zero (c : ℝ) : ‖(![0, c] : Fin 2 → ℝ)‖ = |c| := by
+  rw [Pi.norm_def]
+  have h : (Finset.univ : Finset (Fin 2)).sup
+      (fun b => ‖(![0, c] : Fin 2 → ℝ) b‖₊) = ‖c‖₊ := by
+    rw [show (Finset.univ : Finset (Fin 2)) = ({0, 1} : Finset (Fin 2)) by decide]
+    simp
+  rw [h]
+  simp
+
+lemma norm_perp_le (θ : ℝ) : ‖(![-Real.sin θ, Real.cos θ] : Fin 2 → ℝ)‖ ≤ 1 := by
+  rw [Pi.norm_def, show (1 : ℝ) = ((1 : NNReal) : ℝ) by simp, NNReal.coe_le_coe]
+  refine Finset.sup_le fun i _ => ?_
+  fin_cases i
+  · rw [← NNReal.coe_le_coe]; simpa using Real.abs_sin_le_one θ
+  · rw [← NNReal.coe_le_coe]; simpa using Real.abs_cos_le_one θ
+
+/-- The rotation expressed in the `Fin 2 → ℝ` coordinates. -/
+lemma rotLin_pair (θ x y : ℝ) :
+    rotLin θ ![x, y] = ![Real.cos θ * x + Real.sin θ * y, -Real.sin θ * x + Real.cos θ * y] :=
+  rotLin_apply θ ![x, y]
+
+/-- The rotation maps the direction `ψ` to the direction `ψ - φ`. -/
+lemma rotLin_dirFi2 (φ ψ : ℝ) : rotLin φ (dirFi2 ψ) = dirFi2 (ψ - φ) := by
+  ext i; fin_cases i <;>
+    simp [rotLin_apply, dirFi2, Real.cos_sub, Real.sin_sub] <;> ring
+
+/-- Decomposition of a vector in the frame of `dirFi2 θ`. -/
+lemma rotLin_neg_pair (θ : ℝ) (p : Fin 2 → ℝ) :
+    rotLin (-θ) p = p 0 • dirFi2 θ + p 1 • ![-Real.sin θ, Real.cos θ] := by
+  ext i; fin_cases i <;>
+    simp [rotLin_apply, dirFi2, smul_eq_mul, Real.cos_neg, Real.sin_neg] <;> ring
+
+/-! ### Thickening a subset of a segment costs area proportional to its length -/
+
+/-- **Area of a neighbourhood of a subset of a segment.**  If `A ⊆ ℝ` parametrises a subset of the
+segment `t ↦ a + t • dirFi2 θ`, then for `r ≥ 0` its `r`-neighbourhood has area at least
+`2 r · |A|` (and the statement is also true for `r < 0`, both sides being zero).  No boundedness of
+`A` is needed. -/
+theorem volume_cthickening_image_le (θ : ℝ) (a : Fin 2 → ℝ) (A : Set ℝ) (r : ℝ) :
+    2 * ENNReal.ofReal r * volume A
+      ≤ volume (Metric.cthickening r {x : Fin 2 → ℝ | ∃ t ∈ A, x = a + t • dirFi2 θ}) := by
+  set X : Set (Fin 2 → ℝ) :=
+    Set.pi univ (fun i : Fin 2 => if i = 0 then A else Set.Icc (-r) r) with hX
+  have hXmem : ∀ p : Fin 2 → ℝ, p ∈ X ↔ p 0 ∈ A ∧ |p 1| ≤ r := by
+    intro p
+    rw [hX, Set.mem_pi]
+    constructor
+    · intro h
+      refine ⟨by simpa using h 0 (mem_univ 0), ?_⟩
+      have h1 : p 1 ∈ Set.Icc (-r) r := by simpa using h 1 (mem_univ 1)
+      rw [Set.mem_Icc] at h1
+      exact abs_le.mpr h1
+    · rintro ⟨h0, h1⟩ i hi
+      fin_cases i
+      · exact h0
+      · simpa using (abs_le.mp h1 : p 1 ∈ Set.Icc (-r) r)
+  have hXvol : volume X = volume A * ENNReal.ofReal (2 * r) := by
+    rw [hX, volume_pi, Measure.pi_pi, Fin.prod_univ_two]
+    simp only [Fin.isValue]
+    rw [if_true, if_neg (by decide : ¬ ((1 : Fin 2) = 0)), Real.volume_Icc]
+    congr 1
+    ring
+  have hvol : volume ((fun p : Fin 2 → ℝ => rotLin (-θ) p + a) '' X) = volume X := by
+    have h1 : (fun p : Fin 2 → ℝ => rotLin (-θ) p + a) '' X
+        = (fun x : Fin 2 → ℝ => x + a) '' (rotLin (-θ) '' X) := by
+      rw [Set.image_image]
+    rw [h1, volume_image_add, volume_rotLin]
+  have hsub : (fun p : Fin 2 → ℝ => rotLin (-θ) p + a) '' X
+      ⊆ Metric.cthickening r {x : Fin 2 → ℝ | ∃ t ∈ A, x = a + t • dirFi2 θ} := by
+    rintro z ⟨p, hp, rfl⟩
+    obtain ⟨hp0, hp1⟩ := (hXmem p).mp hp
+    have hdec : rotLin (-θ) p = p 0 • dirFi2 θ + p 1 • ![-Real.sin θ, Real.cos θ] :=
+      rotLin_neg_pair θ p
+    have hdist : dist (rotLin (-θ) p + a) (a + p 0 • dirFi2 θ) ≤ r := by
+      have hsub2 : rotLin (-θ) p + a - (a + p 0 • dirFi2 θ)
+          = p 1 • ![-Real.sin θ, Real.cos θ] := by
+        rw [hdec]; abel
+      rw [dist_eq_norm, hsub2, norm_smul, Real.norm_eq_abs]
+      calc |p 1| * ‖(![-Real.sin θ, Real.cos θ] : Fin 2 → ℝ)‖
+          ≤ |p 1| * 1 :=
+            mul_le_mul_of_nonneg_left (norm_perp_le θ) (abs_nonneg _)
+        _ = |p 1| := by ring
+        _ ≤ r := hp1
+    exact Metric.mem_cthickening_of_dist_le _ _ _ _ ⟨p 0, hp0, rfl⟩ hdist
+  calc 2 * ENNReal.ofReal r * volume A
+      = volume A * ENNReal.ofReal (2 * r) := by
+        rw [ENNReal.ofReal_mul (by norm_num : (0 : ℝ) ≤ 2), ENNReal.ofReal_ofNat]
+        ring
+    _ = volume X := hXvol.symm
+    _ = volume ((fun p : Fin 2 → ℝ => rotLin (-θ) p + a) '' X) := hvol.symm
+    _ ≤ volume (Metric.cthickening r {x : Fin 2 → ℝ | ∃ t ∈ A, x = a + t • dirFi2 θ}) :=
+        measure_mono hsub
+
+
+/-! ### Threshold weights for the multi-scale argument -/
+
+lemma exists_threshold_weights (d : ℝ) (hd : d < 2) :
+    ∃ (δ ρ : ℝ) (c : ℕ → ℝ), 0 < δ ∧ 0 < ρ ∧ ρ < 1 ∧
+      (∀ k : ℕ, c k = δ * ρ ^ k * k) ∧
+      (∑' k : ℕ, ENNReal.ofReal (c k)) ≤ 1 / 4 ∧
+      (∀ k : ℕ, 1 ≤ k → c k ^ 2 * (2 : ℝ) ^ ((k : ℝ) * (2 - d)) / k = δ ^ 2 * k) := by
+  have h2d : (0 : ℝ) < 2 - d := by linarith
+  set ρ : ℝ := (2 : ℝ) ^ (-(2 - d) / 2) with hρdef
+  have hρpos : 0 < ρ := Real.rpow_pos_of_pos (by norm_num) _
+  have hρlt : ρ < 1 := by
+    rw [hρdef, show -(2 - d) / 2 = -((2 - d) / 2) by ring,
+      Real.rpow_neg (by norm_num : (0 : ℝ) ≤ 2)]
+    rw [inv_lt_one_iff₀]
+    exact Or.inr (Real.one_lt_rpow (by norm_num) (by linarith))
+  set S : ℝ := ρ / (1 - ρ) ^ 2 with hSdef
+  have h1ρ : 0 < 1 - ρ := by linarith
+  have hSnn : 0 ≤ S := by rw [hSdef]; positivity
+  set δ : ℝ := 1 / (4 * (S + 1)) with hδdef
+  have hδpos : 0 < δ := by rw [hδdef]; positivity
+  refine ⟨δ, ρ, fun k => δ * ρ ^ k * k, hδpos, hρpos, hρlt, fun k => rfl, ?_, ?_⟩
+  · have hρnorm : ‖ρ‖ < 1 := by rw [Real.norm_eq_abs, abs_lt]; exact ⟨by linarith, hρlt⟩
+    have hsummable : Summable (fun k : ℕ => δ * ρ ^ k * k) := by
+      have h := (hasSum_coe_mul_geometric_of_norm_lt_one hρnorm).summable
+      have h2 : Summable (fun k : ℕ => δ * ((k : ℝ) * ρ ^ k)) := h.mul_left δ
+      refine h2.congr fun k => ?_
+      ring
+    rw [← ENNReal.ofReal_tsum_of_nonneg (fun k => by positivity) hsummable]
+    rw [show (1 : ℝ≥0∞) / 4 = ENNReal.ofReal (1 / 4) by
+      rw [show (1 : ℝ≥0∞) = ENNReal.ofReal 1 by simp,
+        show (4 : ℝ≥0∞) = ENNReal.ofReal 4 by simp,
+        ← ENNReal.ofReal_div_of_pos (by norm_num : (0 : ℝ) < 4)]]
+    apply ENNReal.ofReal_le_ofReal
+    have hval : ∑' k : ℕ, δ * ρ ^ k * k = δ * S := by
+      rw [show (fun k : ℕ => δ * ρ ^ k * k) = (fun k : ℕ => δ * ((k : ℝ) * ρ ^ k)) by
+        funext k; ring]
+      rw [tsum_mul_left, tsum_coe_mul_geometric_of_norm_lt_one hρnorm, hSdef]
+    rw [hval, hδdef]
+    rw [div_mul_eq_mul_div, div_le_iff₀ (by positivity : (0 : ℝ) < 4 * (S + 1))]
+    nlinarith [hSnn]
+  · intro k hk
+    have hρ2 : ρ ^ 2 * (2 : ℝ) ^ (2 - d) = 1 := by
+      rw [hρdef, sq, ← Real.rpow_add (by norm_num : (0 : ℝ) < 2),
+        ← Real.rpow_add (by norm_num : (0 : ℝ) < 2)]
+      rw [show -(2 - d) / 2 + -(2 - d) / 2 + (2 - d) = 0 by ring, Real.rpow_zero]
+    have hkey : ρ ^ (2 * k) * (2 : ℝ) ^ ((k : ℝ) * (2 - d)) = 1 := by
+      have h1 : (2:ℝ) ^ ((k:ℝ) * (2 - d)) = (2 ^ (2 - d)) ^ (k : ℕ) := by
+        rw [mul_comm, Real.rpow_mul (by norm_num : (0:ℝ) ≤ 2), Real.rpow_natCast]
+      rw [h1, pow_mul, ← mul_pow, hρ2, one_pow]
+    show (δ * ρ ^ k * (k : ℝ)) ^ 2 * (2 : ℝ) ^ ((k : ℝ) * (2 - d)) / (k : ℝ) = δ ^ 2 * (k : ℝ)
+    calc (δ * ρ ^ k * (k : ℝ)) ^ 2 * (2 : ℝ) ^ ((k : ℝ) * (2 - d)) / (k : ℝ)
+        = δ ^ 2 * (k : ℝ) * (ρ ^ (2 * k) * (2 : ℝ) ^ ((k : ℝ) * (2 - d))) := by
+          field_simp; ring
+      _ = δ ^ 2 * (k : ℝ) := by rw [hkey, mul_one]
+
+/-- **Area of a neighbourhood of a subset of a segment.**  If `A ⊆ ℝ` parametrises a subset of the
+segment `t ↦ a + t • dirFi2 θ`, then for `r ≥ 0` its `r`-neighbourhood has area at least
+`2 r · |A|` (and the statement is also true for `r < 0`, both sides being zero).  No boundedness of
+`A` is needed. -/
+theorem volume_biUnion_closedBall_image_le (θ : ℝ) (a : Fin 2 → ℝ) (A : Set ℝ) (r : ℝ) :
+    2 * ENNReal.ofReal r * volume A
+      ≤ volume (⋃ s ∈ A, Metric.closedBall (a + s • dirFi2 θ) r) := by
+  set X : Set (Fin 2 → ℝ) :=
+    Set.pi univ (fun i : Fin 2 => if i = 0 then A else Set.Icc (-r) r) with hX
+  have hXmem : ∀ p : Fin 2 → ℝ, p ∈ X ↔ p 0 ∈ A ∧ |p 1| ≤ r := by
+    intro p
+    rw [hX, Set.mem_pi]
+    constructor
+    · intro h
+      refine ⟨by simpa using h 0 (mem_univ 0), ?_⟩
+      have h1 : p 1 ∈ Set.Icc (-r) r := by simpa using h 1 (mem_univ 1)
+      rw [Set.mem_Icc] at h1
+      exact abs_le.mpr h1
+    · rintro ⟨h0, h1⟩ i hi
+      fin_cases i
+      · exact h0
+      · simpa using (abs_le.mp h1 : p 1 ∈ Set.Icc (-r) r)
+  have hXvol : volume X = volume A * ENNReal.ofReal (2 * r) := by
+    rw [hX, volume_pi, Measure.pi_pi, Fin.prod_univ_two]
+    simp only [Fin.isValue]
+    rw [if_true, if_neg (by decide : ¬ ((1 : Fin 2) = 0)), Real.volume_Icc]
+    congr 1
+    ring
+  have hvol : volume ((fun p : Fin 2 → ℝ => rotLin (-θ) p + a) '' X) = volume X := by
+    have h1 : (fun p : Fin 2 → ℝ => rotLin (-θ) p + a) '' X
+        = (fun x : Fin 2 → ℝ => x + a) '' (rotLin (-θ) '' X) := by
+      rw [Set.image_image]
+    rw [h1, volume_image_add, volume_rotLin]
+  have hsub : (fun p : Fin 2 → ℝ => rotLin (-θ) p + a) '' X
+      ⊆ ⋃ s ∈ A, Metric.closedBall (a + s • dirFi2 θ) r := by
+    rintro z ⟨p, hp, rfl⟩
+    obtain ⟨hp0, hp1⟩ := (hXmem p).mp hp
+    have hdec : rotLin (-θ) p = p 0 • dirFi2 θ + p 1 • ![-Real.sin θ, Real.cos θ] :=
+      rotLin_neg_pair θ p
+    refine Set.mem_iUnion.mpr ⟨p 0, Set.mem_iUnion.mpr ⟨hp0, ?_⟩⟩
+    rw [Metric.mem_closedBall]
+    have hsub2 : rotLin (-θ) p + a - (a + p 0 • dirFi2 θ)
+        = p 1 • ![-Real.sin θ, Real.cos θ] := by rw [hdec]; abel
+    rw [dist_eq_norm, hsub2, norm_smul, Real.norm_eq_abs]
+    calc |p 1| * ‖(![-Real.sin θ, Real.cos θ] : Fin 2 → ℝ)‖
+        ≤ |p 1| * 1 := mul_le_mul_of_nonneg_left (norm_perp_le θ) (abs_nonneg _)
+      _ = |p 1| := by ring
+      _ ≤ r := hp1
+  calc 2 * ENNReal.ofReal r * volume A
+      = volume A * ENNReal.ofReal (2 * r) := by
+        rw [ENNReal.ofReal_mul (by norm_num : (0 : ℝ) ≤ 2), ENNReal.ofReal_ofNat]
+        ring
+    _ = volume X := hXvol.symm
+    _ = volume ((fun p : Fin 2 → ℝ => rotLin (-θ) p + a) '' X) := hvol.symm
+    _ ≤ volume (⋃ s ∈ A, Metric.closedBall (a + s • dirFi2 θ) r) := measure_mono hsub
+
+/-! ### Elementary sup-norm computations in `Fin 2 → ℝ` -/
+
+lemma abs_rotLin_apply_le (θ : ℝ) (w : Fin 2 → ℝ) (i : Fin 2) :
+    |rotLin θ w i| ≤ |w 0| + |w 1| := by
+  have key : ∀ c s x y : ℝ, |c| ≤ 1 → |s| ≤ 1 → |c * x + s * y| ≤ |x| + |y| := by
+    intro c s x y hc hs
+    calc |c * x + s * y| ≤ |c * x| + |s * y| := abs_add_le _ _
+      _ = |c| * |x| + |s| * |y| := by rw [abs_mul, abs_mul]
+      _ ≤ 1 * |x| + 1 * |y| := add_le_add (mul_le_mul_of_nonneg_right hc (abs_nonneg _))
+          (mul_le_mul_of_nonneg_right hs (abs_nonneg _))
+      _ = |x| + |y| := by ring
+  rw [rotLin_apply]
+  fin_cases i
+  · simpa [Matrix.cons_val_zero] using
+      key (Real.cos θ) (Real.sin θ) (w 0) (w 1) (Real.abs_cos_le_one θ) (Real.abs_sin_le_one θ)
+  · simpa [Matrix.cons_val_one, Matrix.head_cons] using
+      key (-Real.sin θ) (Real.cos θ) (w 0) (w 1) (by simpa using Real.abs_sin_le_one θ)
+        (Real.abs_cos_le_one θ)
+
+/-- **A tube contains a thickened inner part of a nearly parallel segment.** -/
+lemma biUnion_closedBall_seg_subset_tube (a : Fin 2 → ℝ) {θ θ' h : ℝ} (hh : 0 < h)
+    (hh4 : h ≤ 1 / 4) (hΔ : |θ - θ'| ≤ h) {A : Set ℝ}
+    (hA : A ⊆ Set.Icc (-(3 / 8 : ℝ)) (3 / 8)) :
+    (⋃ s ∈ A, Metric.closedBall (a + s • dirFi2 θ) (h / 4)) ⊆ tube h θ' a := by
+  intro y hy
+  obtain ⟨s, hsA, hys⟩ : ∃ s ∈ A, y ∈ Metric.closedBall (a + s • dirFi2 θ) (h / 4) := by
+    simpa using hy
+  rw [Metric.mem_closedBall] at hys
+  have hs : |s| ≤ 3 / 8 := by
+    have h1 := hA hsA; rw [Set.mem_Icc] at h1
+    exact abs_le.mpr ⟨by linarith [h1.1], h1.2⟩
+  set w : Fin 2 → ℝ := y - (a + s • dirFi2 θ) with hw
+  have hwn : ‖w‖ ≤ h / 4 := by rw [hw, ← dist_eq_norm]; exact hys
+  have hwi : ∀ i : Fin 2, |w i| ≤ h / 4 := fun i =>
+    le_trans (by rw [← Real.norm_eq_abs]; exact norm_le_pi_norm w i) hwn
+  have hdec : rotLin θ' (y - a) = s • dirFi2 (θ - θ') + rotLin θ' w := by
+    rw [hw]
+    have : y - a = s • dirFi2 θ + (y - (a + s • dirFi2 θ)) := by abel
+    rw [this, map_add, map_smul, rotLin_dirFi2]
+  have hbound0 : |(rotLin θ' (y - a)) 0| ≤ 1 / 2 := by
+    rw [hdec]
+    simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul, dirFi2, Matrix.cons_val_zero]
+    have h2 : |s * Real.cos (θ - θ')| ≤ 3 / 8 := by
+      rw [abs_mul]
+      calc |s| * |Real.cos (θ - θ')| ≤ (3/8) * 1 :=
+            mul_le_mul hs (Real.abs_cos_le_one _) (abs_nonneg _) (by norm_num)
+        _ = 3 / 8 := by ring
+    calc |s * Real.cos (θ - θ') + (rotLin θ' w) 0|
+        ≤ |s * Real.cos (θ - θ')| + |(rotLin θ' w) 0| := abs_add_le _ _
+      _ ≤ 3 / 8 + (|w 0| + |w 1|) := add_le_add h2 (abs_rotLin_apply_le θ' w 0)
+      _ ≤ 3 / 8 + (h / 4 + h / 4) := add_le_add le_rfl (add_le_add (hwi 0) (hwi 1))
+      _ ≤ 1 / 2 := by linarith
+  have hbound1 : |(rotLin θ' (y - a)) 1| ≤ h := by
+    rw [hdec]
+    simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul, dirFi2, Matrix.cons_val_one,
+      Matrix.head_cons]
+    have h2 : |s * Real.sin (θ - θ')| ≤ 3 / 8 * h := by
+      rw [abs_mul]
+      calc |s| * |Real.sin (θ - θ')| ≤ (3/8) * |θ - θ'| :=
+            mul_le_mul hs Real.abs_sin_le_abs (abs_nonneg _) (by norm_num)
+        _ ≤ (3/8) * h := mul_le_mul_of_nonneg_left hΔ (by norm_num)
+    calc |s * Real.sin (θ - θ') + (rotLin θ' w) 1|
+        ≤ |s * Real.sin (θ - θ')| + |(rotLin θ' w) 1| := abs_add_le _ _
+      _ ≤ 3 / 8 * h + (|w 0| + |w 1|) := add_le_add h2 (abs_rotLin_apply_le θ' w 1)
+      _ ≤ 3 / 8 * h + (h / 4 + h / 4) := add_le_add le_rfl (add_le_add (hwi 0) (hwi 1))
+      _ ≤ h := by linarith
+  rw [tube, Set.mem_preimage, mem_rect_iff]
+  exact ⟨hbound0, hbound1⟩
+
+/-! ### The arcs `[i/N, (i+1)/N)` partition `[0,1)` -/
+
+lemma exists_arc (N : ℕ) (hN : 0 < N) (s : ℝ) (hs : s ∈ Set.Ico (0:ℝ) 1) :
+    ∃ i : Fin N, s ∈ Set.Ico ((i:ℝ)/N) (((i:ℝ)+1)/N) := by
+  have hN' : (0:ℝ) < (N:ℝ) := by exact_mod_cast hN
+  have hsN : s * (N:ℝ) ∈ Set.Ico (0:ℝ) (N:ℝ) := by
+    rw [Set.mem_Ico] at hs ⊢
+    exact ⟨mul_nonneg hs.1 (le_of_lt hN'), by nlinarith [hs.2]⟩
+  have hlt : ⌊s * (N:ℝ)⌋₊ < N := by
+    rw [Nat.floor_lt hsN.1]; exact hsN.2
+  refine ⟨⟨⌊s * (N:ℝ)⌋₊, hlt⟩, ?_⟩
+  rw [Set.mem_Ico]
+  constructor
+  · rw [div_le_iff₀ hN']
+    simpa only [Fin.val_mk] using Nat.floor_le hsN.1
+  · rw [lt_div_iff₀ hN']
+    have := Nat.lt_floor_add_one (s * (N:ℝ))
+    linarith
+
+lemma iUnion_arc (N : ℕ) (hN : 0 < N) :
+    (Set.iUnion (fun i : Fin N => Set.Ico ((i:ℝ)/N) (((i:ℝ)+1)/N))) = Set.Ico (0:ℝ) 1 := by
+  apply Set.Subset.antisymm
+  · rintro s hs
+    obtain ⟨i, hi⟩ := Set.mem_iUnion.mp hs
+    rw [Set.mem_Ico] at hi ⊢
+    have hN' : (0:ℝ) < (N:ℝ) := by exact_mod_cast hN
+    have hi1 : (i:ℝ) + 1 ≤ (N:ℝ) := by
+      have h : i.val + 1 ≤ N := i.isLt
+      exact_mod_cast h
+    constructor
+    · exact le_trans (div_nonneg (Nat.cast_nonneg i) (le_of_lt hN')) hi.1
+    · calc s < ((i:ℝ) + 1) / N := hi.2
+        _ ≤ 1 := by rw [div_le_one hN']; exact hi1
+  · intro s hs
+    exact mem_iUnion.mpr (exists_arc N hN s hs)
+
+lemma mem_iUnion₂_iff {α ι : Type*} {s : Set ι} {f : ι → Set α} {x : α} :
+    x ∈ ⋃ i ∈ s, f i ↔ ∃ i ∈ s, x ∈ f i := by
+  simp only [Set.mem_iUnion]
+  constructor
+  · rintro ⟨i, hi⟩; exact ⟨i, hi.1, hi.2⟩
+  · rintro ⟨i, hi, hx⟩; exact ⟨i, hi, hx⟩
+
+/-- The map `x ↦ x • dirFi2 θ` is injective. -/
+lemma smul_dirFi2_injective (θ : ℝ) : Function.Injective (fun x : ℝ => x • dirFi2 θ) := by
+  intro x y hxy
+  have h : (x - y) • dirFi2 θ = 0 := by
+    have h2 : x • dirFi2 θ - y • dirFi2 θ = 0 := sub_eq_zero.mpr hxy
+    rwa [← sub_smul] at h2
+  have hcos := Real.cos_sq_add_sin_sq θ
+  rcases eq_or_ne (Real.cos θ) 0 with hc | hc
+  · have hs : Real.sin θ ≠ 0 := by
+      intro hs; rw [hs, hc] at hcos; norm_num at hcos
+    have := congrFun h 1
+    simp only [Pi.smul_apply, Pi.zero_apply, smul_eq_mul, dirFi2, Matrix.cons_val_one] at this
+    exact sub_eq_zero.mp (mul_eq_zero.mp this |>.resolve_right hs)
+  · have := congrFun h 0
+    simp only [Pi.smul_apply, Pi.zero_apply, smul_eq_mul, dirFi2, Matrix.cons_val_zero] at this
+    exact sub_eq_zero.mp (mul_eq_zero.mp this |>.resolve_right hc)
+
+/-- Setup: the scale decomposition, the (disjoint) refined layers, and the
+one-dimensional coverage inequality `3/4 ≤ ∑ k, lam k θ`. -/
+lemma cover_setup (d : ℝ) {E : Set (Fin 2 → ℝ)} (t : ℕ → Set (Fin 2 → ℝ))
+    (hE : ∀ θ : ℝ, ∃ a : Fin 2 → ℝ, seg θ a ⊆ E)
+    (hEd : ∀ n, Metric.ediam (t n) ≤ ENNReal.ofReal (1 / 16)) (hcov : E ⊆ ⋃ n, t n) :
+    ∃ (δs : ℕ → ℝ) (ρ : ℕ → ℝ) (u : ℕ → Set (Fin 2 → ℝ)) (box : ℕ → Set (Fin 2 → ℝ))
+      (ctr : ℕ → Fin 2 → ℝ)
+      (Jl : ℕ → Set ℕ) (Hs : ℕ → Set (Fin 2 → ℝ))
+      (aOf : ℝ → Fin 2 → ℝ) (par : ℝ → ℝ → Fin 2 → ℝ) (lam : ℕ → ℝ → ℝ≥0∞),
+      (∀ k, 0 < δs k) ∧ (∀ k, δs k = (1/2:ℝ)^k) ∧
+      (∀ k, k < 4 → Hs k = ∅) ∧ (∀ n, 0 ≤ ρ n) ∧
+      (∀ n, Metric.ediam (u n) = ENNReal.ofReal (ρ n)) ∧
+      (∀ n, Metric.ediam (t n) = ENNReal.ofReal (ρ n)) ∧
+      (E ⊆ ⋃ n, u n) ∧
+      (∀ n, u n ⊆ box n) ∧ (∀ n, MeasurableSet (box n)) ∧
+      (∀ n, box n = Set.Icc (ctr n - ρ n • 1) (ctr n + ρ n • 1)) ∧
+      (∀ n, volume (box n) ≤ ENNReal.ofReal ((2 * ρ n) ^ 2)) ∧
+      (∀ k n, n ∈ Jl k ↔ δs (k+1) < ρ n ∧ ρ n ≤ δs k) ∧
+      (∀ k k', k ≠ k' → Disjoint (Jl k) (Jl k')) ∧
+      (∀ θ, seg θ (aOf θ) ⊆ E) ∧
+      (∀ k, MeasurableSet (Hs k)) ∧
+      (∀ k k', k ≠ k' → Disjoint (Hs k) (Hs k')) ∧
+      (∀ k, Hs k ⊆ ⋃ n ∈ Jl k, box n) ∧
+      (∀ k θ, lam k θ
+        = volume (par θ ⁻¹' (Hs k) ∩ Set.Icc (-(3/8:ℝ)) (3/8))) ∧
+      (∀ (θ : ℝ) (x : ℝ), par θ x = aOf θ + x • dirFi2 θ) ∧
+      (∀ θ, (3/4 : ℝ≥0∞) ≤ ∑' k, lam k θ) := by
+  classical
+  set u : ℕ → Set (Fin 2 → ℝ) := fun n => closure (t n) with hu
+  have humeas : ∀ n, MeasurableSet (u n) := fun n => isClosed_closure.measurableSet
+  have hucov : E ⊆ ⋃ n, u n := hcov.trans (iUnion_mono fun n => subset_closure)
+  have hued : ∀ n, Metric.ediam (u n) ≤ ENNReal.ofReal (1 / 16) := fun n => by
+    rw [hu, Metric.ediam_closure]; exact hEd n
+  have hρtop : ∀ n, Metric.ediam (u n) ≠ ⊤ := fun n =>
+    ne_top_of_le_ne_top ENNReal.ofReal_ne_top (hued n)
+  set ρ : ℕ → ℝ := fun n => (Metric.ediam (u n)).toReal with hρ
+  have hρnn : ∀ n, 0 ≤ ρ n := fun n => ENNReal.toReal_nonneg
+  have hρeq : ∀ n, Metric.ediam (u n) = ENNReal.ofReal (ρ n) := fun n =>
+    (ENNReal.ofReal_toReal (hρtop n)).symm
+  set δs : ℕ → ℝ := fun k => (1 / 2 : ℝ) ^ k with hδs
+  have hδspos : ∀ k, 0 < δs k := fun k => by rw [hδs]; positivity
+  have hδsanti : ∀ {i j : ℕ}, i ≤ j → δs j ≤ δs i := by
+    intro i j hij; rw [hδs]
+    exact pow_le_pow_of_le_one (by norm_num) (by norm_num) hij
+  set ctr : ℕ → Fin 2 → ℝ :=
+    fun n => if h : (u n).Nonempty then Classical.choose h else 0 with hctr
+  have hctrmem : ∀ n (h : (u n).Nonempty), ctr n ∈ u n := by
+    intro n h; rw [hctr]; simp only [dif_pos h]; exact Classical.choose_spec h
+  set box : ℕ → Set (Fin 2 → ℝ) := fun n => Set.Icc (ctr n - ρ n • 1) (ctr n + ρ n • 1) with hbox
+  have hboxmeas : ∀ n, MeasurableSet (box n) := fun n => measurableSet_Icc
+  have husub : ∀ n, u n ⊆ box n := by
+    intro n x hx
+    have hed : edist x (ctr n) ≤ Metric.ediam (u n) :=
+      Metric.edist_le_ediam_of_mem hx (hctrmem n ⟨x, hx⟩)
+    have hdist : dist x (ctr n) ≤ ρ n := by
+      have h1 : (edist x (ctr n)).toReal ≤ (Metric.ediam (u n)).toReal :=
+        ENNReal.toReal_mono (hρtop n) hed
+      rw [edist_dist, ENNReal.toReal_ofReal dist_nonneg] at h1
+      simpa [hρ] using h1
+    rw [hbox, Set.mem_Icc]
+    constructor <;> intro i <;>
+      simp only [Pi.sub_apply, Pi.add_apply, Pi.one_apply, Pi.smul_apply, smul_eq_mul, mul_one]
+    · have h2 : |x i - ctr n i| ≤ dist x (ctr n) := by
+        have h3 : |(x - ctr n) i| ≤ ‖x - ctr n‖ := by
+          rw [← Real.norm_eq_abs]; exact norm_le_pi_norm (x - ctr n) i
+        simpa [dist_eq_norm, Pi.sub_apply] using h3
+      linarith [abs_le.mp h2]
+    · have h2 : |x i - ctr n i| ≤ dist x (ctr n) := by
+        have h3 : |(x - ctr n) i| ≤ ‖x - ctr n‖ := by
+          rw [← Real.norm_eq_abs]; exact norm_le_pi_norm (x - ctr n) i
+        simpa [dist_eq_norm, Pi.sub_apply] using h3
+      linarith [abs_le.mp h2]
+  have hboxvol : ∀ n, volume (box n) ≤ ENNReal.ofReal ((2 * ρ n) ^ 2) := by
+    intro n
+    rw [hbox, Real.volume_Icc_pi, Fin.prod_univ_two]
+    simp only [Pi.sub_apply, Pi.add_apply, Pi.one_apply, Pi.smul_apply, smul_eq_mul, mul_one]
+    rw [show ctr n 0 + ρ n - (ctr n 0 - ρ n) = 2 * ρ n by ring,
+      show ctr n 1 + ρ n - (ctr n 1 - ρ n) = 2 * ρ n by ring]
+    rw [← ENNReal.ofReal_mul (by positivity : (0:ℝ) ≤ 2 * ρ n)]
+    exact ENNReal.ofReal_le_ofReal (le_of_eq (by ring))
+  set Jl : ℕ → Set ℕ := fun k => {n | ρ n ≤ δs k} \ {n | ρ n ≤ δs (k+1)} with hJl
+  have hmemJ : ∀ k n, n ∈ Jl k ↔ δs (k+1) < ρ n ∧ ρ n ≤ δs k := by
+    intro k n
+    rw [hJl, Set.mem_sdiff, Set.mem_setOf_eq, Set.mem_setOf_eq, not_le]
+    exact ⟨fun h => ⟨h.2, h.1⟩, fun h => ⟨h.2, h.1⟩⟩
+  have hJdisj : ∀ k k' : ℕ, k ≠ k' → Disjoint (Jl k) (Jl k') := by
+    intro k k' hkk'
+    rw [Set.disjoint_left]
+    intro n hn hn'
+    rw [hmemJ] at hn hn'
+    rcases lt_or_gt_of_ne hkk' with h | h
+    · have h3 : δs k' ≤ δs (k+1) := hδsanti (by omega)
+      linarith [hn.1, hn'.2, h3]
+    · have h3 : δs k ≤ δs (k'+1) := hδsanti (by omega)
+      linarith [hn'.1, hn.2, h3]
+  set Gs : ℕ → Set (Fin 2 → ℝ) := fun k => ⋃ n : ℕ, (if n ∈ Jl k then u n else ∅) with hGs
+  have hmemG : ∀ k x, x ∈ Gs k ↔ ∃ n, n ∈ Jl k ∧ x ∈ u n := by
+    intro k x
+    apply Iff.intro
+    · intro h
+      simp only [hGs, Set.mem_iUnion] at h
+      obtain ⟨n, hn⟩ := h
+      by_cases hk : n ∈ Jl k
+      · exact ⟨n, hk, by simpa [hk] using hn⟩
+      · simp [hk] at hn
+    · rintro ⟨n, hn, hx⟩
+      simp only [hGs, Set.mem_iUnion]
+      exact ⟨n, by simp [hn, hx]⟩
+  have hGsmeas : ∀ k, MeasurableSet (Gs k) := by
+    intro k
+    simp only [hGs]
+    exact MeasurableSet.iUnion fun n => by
+      by_cases h : n ∈ Jl k
+      · simpa [h] using humeas n
+      · simp [h]
+  set Hs : ℕ → Set (Fin 2 → ℝ) := fun k => Gs k \ ⋃ k' : ℕ, (if k' < k then Gs k' else ∅) with hHs
+  have hmemH : ∀ k x, x ∈ Hs k ↔ x ∈ Gs k ∧ ∀ k', k' < k → x ∉ Gs k' := by
+    intro k x
+    apply Iff.intro
+    · intro h
+      simp only [hHs, Set.mem_sdiff, Set.mem_iUnion] at h
+      exact ⟨h.1, fun k' hk' hmem => h.2 ⟨k', by simp [hk', hmem]⟩⟩
+    · intro h
+      simp only [hHs, Set.mem_sdiff, Set.mem_iUnion]
+      refine ⟨h.1, ?_⟩
+      rintro ⟨k', hk'⟩
+      by_cases hlt : k' < k
+      · exact h.2 k' hlt (by simpa [hlt] using hk')
+      · simp [hlt] at hk'
+  have hHsmeas : ∀ k, MeasurableSet (Hs k) := by
+    intro k
+    simp only [hHs, Set.mem_sdiff]
+    refine (hGsmeas k).diff ?_
+    exact MeasurableSet.iUnion fun k' => by
+      by_cases h : k' < k
+      · simpa [h] using hGsmeas k'
+      · simp [h]
+  have hHsdisj : ∀ k k' : ℕ, k ≠ k' → Disjoint (Hs k) (Hs k') := by
+    intro k k' hkk'
+    wlog h : k < k' generalizing k k' with H
+    · exact Disjoint.symm (H k' k (Ne.symm hkk') (by omega))
+    rw [Set.disjoint_left]
+    intro x hx hx'
+    exact ((hmemH k' x).mp hx').2 k h ((hmemH k x).mp hx).1
+  have hHsunion : ⋃ k, Hs k = ⋃ k, Gs k := by
+    apply Set.Subset.antisymm
+    · rintro x hx
+      obtain ⟨k, hk⟩ := Set.mem_iUnion.mp hx
+      simp only [Set.mem_iUnion]
+      exact ⟨k, ((hmemH k x).mp hk).1⟩
+    · rintro x hx
+      obtain ⟨k, hk⟩ := Set.mem_iUnion.mp hx
+      have hex : ∃ k, x ∈ Gs k := ⟨k, hk⟩
+      simp only [Set.mem_iUnion]
+      refine ⟨Nat.find hex, (hmemH _ x).mpr ⟨Nat.find_spec hex, ?_⟩⟩
+      intro k' hk' hmem
+      exact (Nat.find_min hex hk') hmem
+  have hρle : ∀ n, ρ n ≤ 1 / 16 := by
+    intro n
+    have h1 := ENNReal.toReal_mono ENNReal.ofReal_ne_top (hued n)
+    rw [ENNReal.toReal_ofReal (by norm_num : (0:ℝ) ≤ 1/16)] at h1
+    simpa [hρ] using h1
+  have hGu : ⋃ k, Gs k = ⋃ n : ℕ, (if 0 < ρ n then u n else ∅) := by
+    apply Set.Subset.antisymm
+    · rintro x hx
+      obtain ⟨k, hk⟩ := Set.mem_iUnion.mp hx
+      obtain ⟨n, hnJ, hnu⟩ := (hmemG k x).mp hk
+      simp only [Set.mem_iUnion]
+      refine ⟨n, ?_⟩
+      have h1 := (hmemJ k n).mp hnJ
+      simp [lt_trans (hδspos (k+1)) h1.1, hnu]
+    · rintro x hx
+      simp only [Set.mem_iUnion] at hx
+      obtain ⟨n, hn⟩ := hx
+      by_cases h : 0 < ρ n
+      · simp only [h, if_true] at hn
+        have hex : ∃ k, δs k < ρ n := exists_pow_lt_of_lt_one h (by norm_num)
+        have hKpos : 0 < Nat.find hex := by
+          rcases Nat.eq_zero_or_pos (Nat.find hex) with h0 | h0
+          · exfalso
+            have hspec := Nat.find_spec hex
+            rw [h0] at hspec
+            simp only [hδs] at hspec
+            norm_num at hspec
+            linarith [hρle n]
+          · exact h0
+        have hmem : n ∈ Jl (Nat.find hex - 1) := by
+          rw [hmemJ]
+          refine ⟨?_, ?_⟩
+          · rw [Nat.sub_add_cancel hKpos]; exact Nat.find_spec hex
+          · have := Nat.find_min hex (m := Nat.find hex - 1) (by omega)
+            simp only [hδs] at this ⊢
+            push_neg at this
+            exact this
+        simp only [Set.mem_iUnion]
+        exact ⟨Nat.find hex - 1, (hmemG _ x).mpr ⟨_, hmem, hn⟩⟩
+      · simp [h] at hn
+  set aOf : ℝ → Fin 2 → ℝ := fun θ => Classical.choose (hE θ) with haOf
+  have hseg : ∀ θ, seg θ (aOf θ) ⊆ E := fun θ => Classical.choose_spec (hE θ)
+  set par : ℝ → ℝ → Fin 2 → ℝ := fun θ x => aOf θ + x • dirFi2 θ with hpar
+  have hparinj : ∀ θ, Function.Injective (par θ) := by
+    intro θ x y hxy
+    exact smul_dirFi2_injective θ (add_left_cancel hxy)
+  set lam : ℕ → ℝ → ℝ≥0∞ :=
+    fun k θ => volume (par θ ⁻¹' (Hs k) ∩ Set.Icc (-(3/8:ℝ)) (3/8)) with hlamdef
+  have hδsdef : ∀ k, δs k = (1/2:ℝ)^k := fun k => rfl
+  have hJempty : ∀ k, k < 4 → Jl k = ∅ := by
+    intro k hk
+    refine Set.eq_empty_iff_forall_notMem.mpr fun n hn => ?_
+    have h1 := (hmemJ k n).mp hn
+    have h2 : δs 4 ≤ δs (k+1) := hδsanti (by omega)
+    have h3 : δs 4 = 1/16 := by rw [hδsdef]; norm_num
+    have h4 := hρle n
+    rw [h3] at h2
+    linarith [h1.1, h2, h4]
+  have hHsempty : ∀ k, k < 4 → Hs k = ∅ := by
+    intro k hk
+    refine Set.eq_empty_iff_forall_notMem.mpr fun x hx => ?_
+    have h1 := (hmemH k x).mp hx
+    obtain ⟨n, hnJ, _⟩ := (hmemG k x).mp h1.1
+    rw [hJempty k hk] at hnJ
+    exact hnJ
+  have hHsbox : ∀ k, Hs k ⊆ ⋃ n ∈ Jl k, box n := by
+    intro k x hx
+    have h1 := (hmemH k x).mp hx
+    obtain ⟨n, hnJ, hnu⟩ := (hmemG k x).mp h1.1
+    rw [mem_iUnion₂_iff]
+    exact ⟨n, hnJ, husub n hnu⟩
+  refine ⟨δs, ρ, u, box, ctr, Jl, Hs, aOf, par, lam, hδspos, hδsdef, hHsempty, hρnn, hρeq, ?_, hucov,
+    husub, hboxmeas, (fun n => rfl), hboxvol, hmemJ, hJdisj, hseg, hHsmeas, hHsdisj, hHsbox,
+    (fun k θ => rfl), (fun θ x => rfl), ?_⟩
+  · intro n
+    have h1 : Metric.ediam (u n) = Metric.ediam (t n) := by
+      rw [hu]; exact Metric.ediam_closure (t n)
+    rw [← h1, hρeq n]
+  intro θ
+  have hcont : Continuous (par θ) := by rw [hpar]; fun_prop
+  have hmeas : ∀ k, MeasurableSet (par θ ⁻¹' (Hs k) ∩ Set.Icc (-(3/8:ℝ)) (3/8)) := fun k =>
+    (hHsmeas k).preimage hcont.measurable |>.inter measurableSet_Icc
+  have hsub : Set.Icc (-(3/8:ℝ)) (3/8) ⊆
+      (par θ ⁻¹' (⋃ k, Hs k)) ∪ (par θ ⁻¹' (⋃ n : ℕ, (if ρ n = 0 then u n else ∅))) := by
+    intro x hx
+    have hx1 : x ∈ Set.Icc (-(1/2:ℝ)) (1/2) := by
+      rw [Set.mem_Icc] at hx ⊢
+      exact ⟨by linarith [hx.1], by linarith [hx.2]⟩
+    have hmem : par θ x ∈ ⋃ n, u n := hucov (hseg θ ⟨x, hx1, rfl⟩)
+    obtain ⟨n, hn⟩ := Set.mem_iUnion.mp hmem
+    by_cases hp : ρ n = 0
+    · refine Or.inr ?_
+      simp only [Set.mem_preimage, Set.mem_iUnion]
+      exact ⟨n, by simp [hp, hn]⟩
+    · have hpos : 0 < ρ n := lt_of_le_of_ne (hρnn n) (Ne.symm hp)
+      have h1 : par θ x ∈ ⋃ n : ℕ, (if 0 < ρ n then u n else ∅) := by
+        simp only [Set.mem_iUnion]
+        exact ⟨n, by simp [hpos, hn]⟩
+      rw [← hGu, ← hHsunion] at h1
+      exact Or.inl h1
+  have hnull : volume (par θ ⁻¹' (⋃ n : ℕ, (if ρ n = 0 then u n else ∅))
+      ∩ Set.Icc (-(3/8:ℝ)) (3/8)) = 0 := by
+    have hset : par θ ⁻¹' (⋃ n : ℕ, (if ρ n = 0 then u n else ∅)) ∩ Set.Icc (-(3/8:ℝ)) (3/8)
+        = ⋃ n : ℕ, (if ρ n = 0 then (par θ ⁻¹' (u n) ∩ Set.Icc (-(3/8:ℝ)) (3/8)) else ∅) := by
+      ext y
+      simp only [Set.mem_inter_iff, Set.mem_preimage, Set.mem_iUnion]
+      constructor
+      · rintro ⟨⟨n, hn⟩, hA⟩
+        by_cases h : ρ n = 0
+        · refine ⟨n, ?_⟩
+          rw [if_pos h]
+          exact ⟨by simpa [h] using hn, hA⟩
+        · rw [if_neg h] at hn
+          exact hn.elim
+      · rintro ⟨n, hn⟩
+        by_cases h : ρ n = 0
+        · rw [if_pos h] at hn
+          exact ⟨⟨n, by rw [if_pos h]; exact hn.1⟩, hn.2⟩
+        · rw [if_neg h] at hn
+          exact hn.elim
+    rw [hset, measure_iUnion_null_iff]
+    intro n
+    by_cases h : ρ n = 0
+    · rw [if_pos h]
+      have hsub' : Set.Subsingleton (u n) := by
+        rw [← Metric.ediam_eq_zero_iff, hρeq n, h, ENNReal.ofReal_zero]
+      exact Set.Subsingleton.measure_zero
+        (Set.Subsingleton.anti (hsub'.preimage (hparinj θ)) Set.inter_subset_left) volume
+    · rw [if_neg h]
+      simp
+  have h34 : volume (Set.Icc (-(3/8:ℝ)) (3/8)) = (3/4 : ℝ≥0∞) := by
+    rw [Real.volume_Icc, show (3:ℝ)/8 - -(3/8) = 3/4 by norm_num,
+      show (3/4 : ℝ≥0∞) = ENNReal.ofReal (3/4) by
+        rw [show (3:ℝ≥0∞) = ENNReal.ofReal 3 by norm_num,
+          show (4:ℝ≥0∞) = ENNReal.ofReal 4 by norm_num,
+          ← ENNReal.ofReal_div_of_pos (by norm_num : (0:ℝ) < 4)]]
+  calc (3/4 : ℝ≥0∞) = volume (Set.Icc (-(3/8:ℝ)) (3/8)) := h34.symm
+    _ ≤ volume ((par θ ⁻¹' (⋃ k, Hs k) ∩ Set.Icc (-(3/8:ℝ)) (3/8))
+          ∪ (par θ ⁻¹' (⋃ n : ℕ, (if ρ n = 0 then u n else ∅))
+              ∩ Set.Icc (-(3/8:ℝ)) (3/8))) :=
+        measure_mono fun x hx => by
+          rcases hsub hx with h | h
+          · exact Or.inl ⟨h, hx⟩
+          · exact Or.inr ⟨h, hx⟩
+    _ ≤ volume (par θ ⁻¹' (⋃ k, Hs k) ∩ Set.Icc (-(3/8:ℝ)) (3/8))
+          + volume (par θ ⁻¹' (⋃ n : ℕ, (if ρ n = 0 then u n else ∅))
+              ∩ Set.Icc (-(3/8:ℝ)) (3/8)) := measure_union_le _ _
+    _ = ∑' k, lam k θ := by
+        rw [hnull, add_zero]
+        have h2 : par θ ⁻¹' (⋃ k, Hs k) ∩ Set.Icc (-(3/8:ℝ)) (3/8)
+            = ⋃ k, (par θ ⁻¹' (Hs k) ∩ Set.Icc (-(3/8:ℝ)) (3/8)) := by
+          ext y
+          simp only [Set.mem_inter_iff, Set.mem_preimage, Set.mem_iUnion]
+          constructor
+          · rintro ⟨⟨k, hk⟩, hA⟩; exact ⟨k, hk, hA⟩
+          · rintro ⟨k, hk, hA⟩; exact ⟨⟨k, hk⟩, hA⟩
+        have h3 : volume (⋃ k, (par θ ⁻¹' (Hs k) ∩ Set.Icc (-(3/8:ℝ)) (3/8)))
+            = ∑' k, volume (par θ ⁻¹' (Hs k) ∩ Set.Icc (-(3/8:ℝ)) (3/8)) :=
+          measure_iUnion
+            (fun i j hij => by
+              show Disjoint (par θ ⁻¹' (Hs i) ∩ Set.Icc (-(3/8:ℝ)) (3/8))
+                (par θ ⁻¹' (Hs j) ∩ Set.Icc (-(3/8:ℝ)) (3/8))
+              rw [Set.disjoint_left]
+              intro y hy hy'
+              exact (Set.disjoint_left.mp (hHsdisj i j hij)) hy.1 hy'.1)
+            (fun i => hmeas i)
+        rw [h2, h3]
+
+lemma closedBall_subset_Icc {a c : Fin 2 → ℝ} {ρ h : ℝ} (hh : 0 < h)
+    (ha : ∀ i, |a i - c i| ≤ ρ) (y : Fin 2 → ℝ) (hy : dist y a ≤ h / 4) :
+    y ∈ Set.Icc (c - (ρ + h) • 1) (c + (ρ + h) • 1) := by
+  rw [Set.mem_Icc]
+  have key : ∀ i, |y i - a i| ≤ h / 4 := by
+    intro i
+    have h2 : |(y - a) i| ≤ ‖y - a‖ := by
+      rw [← Real.norm_eq_abs]; exact norm_le_pi_norm (y - a) i
+    have h3 : ‖y - a‖ ≤ h / 4 := by rw [← dist_eq_norm]; exact hy
+    simpa [Pi.sub_apply] using h2.trans h3
+  constructor <;> intro i <;>
+    simp only [Pi.sub_apply, Pi.add_apply, Pi.one_apply, Pi.smul_apply, smul_eq_mul, mul_one]
+  · linarith [abs_le.mp (key i), abs_le.mp (ha i), hh]
+  · linarith [abs_le.mp (key i), abs_le.mp (ha i), hh]
+
+lemma abs_sub_le_of_mem_Icc {a c : Fin 2 → ℝ} {ρ : ℝ}
+    (ha : a ∈ Set.Icc (c - ρ • 1) (c + ρ • 1)) (i : Fin 2) : |a i - c i| ≤ ρ := by
+  rw [Set.mem_Icc] at ha
+  have h1 := ha.1 i; have h2 := ha.2 i
+  simp only [Pi.sub_apply, Pi.add_apply, Pi.one_apply, Pi.smul_apply, smul_eq_mul,
+    mul_one] at h1 h2
+  rw [abs_le]; constructor <;> linarith
+
+lemma mem_iUnion₂_finset_iff {α ι : Type*} {s : Finset ι} {f : ι → Set α} {x : α} :
+    x ∈ ⋃ i ∈ s, f i ↔ ∃ i ∈ s, x ∈ f i := by
+  simp only [Set.mem_iUnion]
+  constructor
+  · rintro ⟨i, hi⟩; exact ⟨i, hi.1, hi.2⟩
+  · rintro ⟨i, hi, hx⟩; exact ⟨i, hi, hx⟩
+
+/-- **The multi-scale covering bound.** -/
+theorem cover_sum_bound_core (d : ℝ) (hd0 : 0 < d) (hd2 : d < 2)
+    (δ : ℝ) (hδpos : 0 < δ) (cw : ℕ → ℝ)
+    (hcwpos : ∀ k, 1 ≤ k → 0 < cw k)
+    (hcwkey : ∀ k : ℕ, 1 ≤ k → cw k ^ 2 * (2:ℝ) ^ ((k:ℝ) * (2 - d)) / k = δ ^ 2 * k)
+    (hcwsum : (∑' k : ℕ, ENNReal.ofReal (cw k)) ≤ 1 / 4)
+    {E : Set (Fin 2 → ℝ)} (t : ℕ → Set (Fin 2 → ℝ))
+    (hE : ∀ θ : ℝ, ∃ a : Fin 2 → ℝ, seg θ a ⊆ E)
+    (hEd : ∀ n, Metric.ediam (t n) ≤ ENNReal.ofReal (1 / 16)) (hcov : E ⊆ ⋃ n, t n) :
+    ENNReal.ofReal (δ ^ 2 * (2:ℝ) ^ (-d) / 130000) ≤ ∑' n, (Metric.ediam (t n)) ^ d := by
+  classical
+  obtain ⟨δs, ρ, u, box, ctr, Jl, Hs, aOf, par, lam, hδspos, hδsdef, hHsempty, hρnn, hρeq,
+    hρeqt, hucov, hsubbox, hboxmeas, hboxeq, hboxvol, hmemJ, hJdisj, hseg, hHsmeas, hHsdisj,
+    hHsbox, hlamdef, hpareq, hlam⟩ := cover_setup d t hE hEd hcov
+  -- ## Step 1: the weighted pigeonhole
+  have hpigeon : ∀ s ∈ Set.Ico (0:ℝ) 1, ∃ k : ℕ, 4 ≤ k ∧
+      ENNReal.ofReal (cw k) ≤ 2 * lam k (Real.pi * s) := by
+    intro s hs
+    by_contra hcon
+    push_neg at hcon
+    have h1 : ∀ k, lam k (Real.pi * s) ≤ ENNReal.ofReal (cw k) / 2 := by
+      intro k
+      by_cases hk : 4 ≤ k
+      · rw [ENNReal.le_div_iff_mul_le (Or.inl (by norm_num : (2:ℝ≥0∞) ≠ 0))
+          (Or.inl (by norm_num : (2:ℝ≥0∞) ≠ ⊤))]
+        simpa [mul_comm] using le_of_lt (hcon k hk)
+      · have h3 : Hs k = ∅ := hHsempty k (by omega)
+        rw [hlamdef k (Real.pi * s), h3, Set.preimage_empty, Set.empty_inter]
+        simp
+    have h2 : ∑' k, lam k (Real.pi * s) ≤ (∑' k, ENNReal.ofReal (cw k)) / 2 := by
+      calc ∑' k, lam k (Real.pi * s) ≤ ∑' k, ENNReal.ofReal (cw k) / 2 :=
+            ENNReal.tsum_le_tsum h1
+        _ = (∑' k, ENNReal.ofReal (cw k)) / 2 := by
+          rw [show (fun k => ENNReal.ofReal (cw k) / 2)
+              = (fun k => ENNReal.ofReal (cw k) * (2:ℝ≥0∞)⁻¹) by
+            funext k; rw [div_eq_mul_inv]]
+          rw [ENNReal.tsum_mul_right, div_eq_mul_inv]
+    have h3 := hlam (Real.pi * s)
+    have h4 : (3/4 : ℝ≥0∞) ≤ (1/4 : ℝ≥0∞) / 2 := by
+      refine h3.trans ?_
+      calc ∑' k, lam k (Real.pi * s) ≤ (∑' k, ENNReal.ofReal (cw k)) / 2 := h2
+        _ ≤ (1/4) / 2 := ENNReal.div_le_div_right hcwsum 2
+    have h34' : ((3:ℝ≥0∞)/4) = ENNReal.ofReal (3/4) := by
+      rw [show (3:ℝ≥0∞) = ENNReal.ofReal 3 by norm_num,
+        show (4:ℝ≥0∞) = ENNReal.ofReal 4 by norm_num,
+        ← ENNReal.ofReal_div_of_pos (by norm_num : (0:ℝ) < 4)]
+    have h18' : ((1:ℝ≥0∞)/8) = ENNReal.ofReal (1/8) := by
+      rw [show (1:ℝ≥0∞) = ENNReal.ofReal 1 by norm_num,
+        show (8:ℝ≥0∞) = ENNReal.ofReal 8 by norm_num,
+        ← ENNReal.ofReal_div_of_pos (by norm_num : (0:ℝ) < 8)]
+    have hq : ((1:ℝ≥0∞)/4) = ENNReal.ofReal (1/4) := by
+      rw [show (1:ℝ≥0∞) = ENNReal.ofReal 1 by norm_num,
+        show (4:ℝ≥0∞) = ENNReal.ofReal 4 by norm_num,
+        ← ENNReal.ofReal_div_of_pos (by norm_num : (0:ℝ) < 4)]
+    have h82 : ((1:ℝ≥0∞)/4)/2 = ENNReal.ofReal (1/8) := by
+      rw [hq, show (2:ℝ≥0∞) = ENNReal.ofReal 2 by norm_num,
+        ← ENNReal.ofReal_div_of_pos (by norm_num : (0:ℝ) < 2)]
+      congr 1
+      norm_num
+    rw [h34', h82] at h4
+    exact absurd h4 (by
+      rw [not_le, ENNReal.ofReal_lt_ofReal_iff (by norm_num : (0:ℝ) < 3/4)]
+      norm_num)
+  -- ## Step 2: tube data
+  set Nk : ℕ → ℕ := fun k => 2 ^ k with hNk
+  set hk : ℕ → ℝ := fun k => 4 * δs k with hhk
+  have hNkpos : ∀ k, 0 < Nk k := fun k => by rw [hNk]; positivity
+  have hNkcast : ∀ k, ((Nk k : ℕ) : ℝ) = (2:ℝ)^k := fun k => by
+    rw [hNk]; push_cast; ring
+  have hδsinv : ∀ k, δs k = ((Nk k : ℕ) : ℝ)⁻¹ := by
+    intro k
+    rw [hNkcast, hδsdef, ← inv_pow, one_div]
+  have hhkpos : ∀ k, 0 < hk k := fun k => by rw [hhk]; linarith [hδspos k]
+  have hhk4 : ∀ k, 4 ≤ k → hk k ≤ 1/4 := by
+    intro k hk4
+    have h1 : (16:ℝ) ≤ (2:ℝ)^k := by
+      calc (16:ℝ) = (2:ℝ)^4 := by norm_num
+        _ ≤ (2:ℝ)^k := pow_le_pow_right₀ (by norm_num) hk4
+    have h2 : ((1:ℝ)/2)^k = ((2:ℝ)^k)⁻¹ := by rw [one_div, inv_pow]
+    simp only [hhk, hδsdef]
+    rw [h2, mul_inv_le_iff₀ (by positivity : (0:ℝ) < (2:ℝ)^k)]
+    linarith
+  have hπ : ∀ k, 4 ≤ k → Real.pi / (Nk k) ≤ hk k := by
+    intro k hk4
+    simp only [hhk, hδsdef, hNkcast]
+    have h2 : ((1:ℝ)/2)^k = ((2:ℝ)^k)⁻¹ := by rw [one_div, inv_pow]
+    rw [h2, div_eq_mul_inv]
+    have h1 : (0:ℝ) < ((2:ℝ)^k)⁻¹ := by positivity
+    have h3 : Real.pi ≤ 4 := Real.pi_le_four
+    nlinarith [h1, h3]
+  have hmul2 : ∀ x : ℝ≥0∞, x ≠ ⊤ → 2 * (x / 2) = x := by
+    intro x hx
+    rw [div_eq_mul_inv, ← mul_assoc, mul_comm (2:ℝ≥0∞) x, mul_assoc,
+      ENNReal.mul_inv_cancel (by norm_num : (2:ℝ≥0∞) ≠ 0) (by norm_num : (2:ℝ≥0∞) ≠ ⊤),
+      mul_one]
+  set Arc : (k : ℕ) → Fin (Nk k) → Set ℝ :=
+    fun k i => Set.Ico ((i:ℝ)/Nk k) (((i:ℝ)+1)/Nk k) with hArc
+  have hArcvol : ∀ k (i : Fin (Nk k)),
+      volume (Arc k i) = ENNReal.ofReal (((Nk k : ℕ) : ℝ)⁻¹) := by
+    intro k i
+    rw [hArc, Real.volume_Ico]
+    congr 1
+    have hN : ((Nk k : ℕ) : ℝ) ≠ 0 := by positivity
+    rw [show ((i:ℝ)+1)/Nk k - (i:ℝ)/Nk k = ((Nk k : ℕ) : ℝ)⁻¹ by
+      field_simp; ring]
+  set aCtr : (k : ℕ) → Fin (Nk k) → Fin 2 → ℝ := fun k i =>
+    if h : ∃ s ∈ Arc k i, ENNReal.ofReal (cw k) ≤ 2 * lam k (Real.pi * s)
+    then aOf (Real.pi * Classical.choose h) else 0 with haCtr
+  set Fk : ℕ → Set (Fin 2 → ℝ) := fun k =>
+    ⋃ n ∈ Jl k, Set.Icc (ctr n - (ρ n + hk k) • 1) (ctr n + (ρ n + hk k) • 1) with hFk
+  have hFkmeas : ∀ k, MeasurableSet (Fk k) := by
+    intro k
+    rw [hFk]
+    exact MeasurableSet.biUnion (Set.countable_univ.mono (Set.subset_univ _))
+      (fun n _ => measurableSet_Icc)
+  set goodp : (k : ℕ) → Fin (Nk k) → Prop := fun k i =>
+    ENNReal.ofReal (cw k * δs k)
+      ≤ volume (tube (hk k) (Real.pi * (i:ℝ) / Nk k) (aCtr k i) ∩ Fk k) with hgoodp
+  set good : (k : ℕ) → Finset (Fin (Nk k)) := fun k =>
+    if 4 ≤ k then ((Finset.univ : Finset (Fin (Nk k))).filter (goodp k)) else ∅ with hgood
+  have hgoodmem_iff : ∀ k (i : Fin (Nk k)), 4 ≤ k → (i ∈ good k ↔ goodp k i) := by
+    intro k i hk4
+    rw [hgood]
+    simp only [hk4, if_true, Finset.mem_filter, Finset.mem_univ, true_and, hgoodp]
+  -- ## Step 3: the tube estimate
+  have hgoodmem : ∀ k, 4 ≤ k → ∀ i : Fin (Nk k),
+      (∃ s ∈ Arc k i, ENNReal.ofReal (cw k) ≤ 2 * lam k (Real.pi * s)) → i ∈ good k := by
+    intro k hk4 i hi
+    rw [hgoodmem_iff k i hk4]
+    simp only [hgoodp]
+    set s' := Classical.choose hi with hs'def
+    have hs'A : s' ∈ Arc k i := (Classical.choose_spec hi).1
+    have hs' : ENNReal.ofReal (cw k) ≤ 2 * lam k (Real.pi * s') := (Classical.choose_spec hi).2
+    have haCtr_eq : aCtr k i = aOf (Real.pi * s') := by
+      rw [haCtr]
+      simp only [dif_pos hi, hs'def]
+    set A : Set ℝ := par (Real.pi * s') ⁻¹' (Hs k) ∩ Set.Icc (-(3/8:ℝ)) (3/8) with hA
+    have hAvol : volume A = lam k (Real.pi * s') := by rw [hA, ← hlamdef]
+    have hAlam : ENNReal.ofReal (cw k) / 2 ≤ volume A := by
+      rw [hAvol, ENNReal.div_le_iff_le_mul (Or.inl (by norm_num : (2:ℝ≥0∞) ≠ 0))
+        (Or.inl (by norm_num : (2:ℝ≥0∞) ≠ ⊤))]
+      simpa [mul_comm] using hs'
+    have hsarc : |Real.pi * s' - Real.pi * (i:ℝ) / Nk k| ≤ hk k := by
+      have h1 : |s' - (i:ℝ)/Nk k| ≤ ((Nk k : ℕ) : ℝ)⁻¹ := by
+        rw [Set.mem_Ico] at hs'A
+        have hN : (0:ℝ) < ((Nk k : ℕ) : ℝ) := by positivity
+        have h2 : ((i:ℝ)+1)/Nk k = (i:ℝ)/Nk k + ((Nk k : ℕ) : ℝ)⁻¹ := by
+          rw [add_div, one_div]
+        rw [h2] at hs'A
+        rw [abs_le]
+        constructor <;> linarith [hs'A.1, hs'A.2, inv_pos.mpr hN]
+      calc |Real.pi * s' - Real.pi * (i:ℝ) / Nk k|
+          = Real.pi * |s' - (i:ℝ)/Nk k| := by
+            rw [show Real.pi * s' - Real.pi * (i:ℝ)/Nk k
+                = Real.pi * (s' - (i:ℝ)/Nk k) by ring, abs_mul,
+              abs_of_nonneg Real.pi_pos.le]
+        _ ≤ Real.pi * ((Nk k : ℕ) : ℝ)⁻¹ := mul_le_mul_of_nonneg_left h1 Real.pi_pos.le
+        _ = Real.pi / Nk k := by ring
+        _ ≤ hk k := hπ k hk4
+    have hA8 : A ⊆ Set.Icc (-(3/8:ℝ)) (3/8) := fun x hx => by rw [hA] at hx; exact hx.2
+    have hSvol := volume_biUnion_closedBall_image_le (Real.pi * s') (aOf (Real.pi * s')) A
+      (hk k / 4)
+    have hsub1 : (⋃ x ∈ A,
+          Metric.closedBall (aOf (Real.pi * s') + x • dirFi2 (Real.pi * s')) (hk k / 4))
+        ⊆ tube (hk k) (Real.pi * (i:ℝ) / Nk k) (aOf (Real.pi * s')) :=
+      biUnion_closedBall_seg_subset_tube (aOf (Real.pi * s')) (hhkpos k) (hhk4 k hk4) hsarc hA8
+    have hsub2 : (⋃ x ∈ A,
+          Metric.closedBall (aOf (Real.pi * s') + x • dirFi2 (Real.pi * s')) (hk k / 4))
+        ⊆ Fk k := by
+      intro y hy
+      simp only [Set.mem_iUnion, exists_prop] at hy
+      obtain ⟨x, hxA, hyx⟩ := hy
+      rw [Metric.mem_closedBall] at hyx
+      have hxH : par (Real.pi * s') x ∈ Hs k := by rw [hA] at hxA; exact hxA.1
+      obtain ⟨n, hnJ, hnx⟩ : ∃ n ∈ Jl k, par (Real.pi * s') x ∈ box n := by
+        have h := hHsbox k hxH
+        rw [mem_iUnion₂_iff] at h
+        exact h
+      have hx2 : aOf (Real.pi * s') + x • dirFi2 (Real.pi * s')
+          ∈ Set.Icc (ctr n - ρ n • 1) (ctr n + ρ n • 1) := by
+        rw [← hboxeq n]
+        simpa only [hpareq] using hnx
+      rw [hFk, mem_iUnion₂_iff]
+      exact ⟨n, hnJ, closedBall_subset_Icc (hhkpos k)
+        (fun i => abs_sub_le_of_mem_Icc hx2 i) y (by simpa only [hpareq] using hyx)⟩
+    have htube : ENNReal.ofReal (cw k * δs k)
+        ≤ volume (tube (hk k) (Real.pi * (i:ℝ) / Nk k) (aCtr k i) ∩ Fk k) := by
+      rw [haCtr_eq]
+      have hδ4 : hk k / 4 = δs k := by rw [hhk]; ring
+      have hstep : 2 * ENNReal.ofReal (hk k / 4) * (ENNReal.ofReal (cw k) / 2)
+          = ENNReal.ofReal (cw k * δs k) := by
+        rw [hδ4, mul_comm (2:ℝ≥0∞) (ENNReal.ofReal (δs k)), mul_assoc,
+          hmul2 _ ENNReal.ofReal_ne_top,
+          ← ENNReal.ofReal_mul (le_of_lt (hδspos k)), mul_comm (δs k) (cw k)]
+      rw [← hstep]
+      refine (mul_le_mul_of_nonneg_left hAlam bot_le).trans ?_
+      exact hSvol.trans (measure_mono fun y hy => ⟨hsub1 hy, hsub2 hy⟩)
+    exact htube
+  -- ## Step 4: the operator bound
+  have hop : ∀ k, 4 ≤ k → ((good k).card : ℝ≥0∞) * (ENNReal.ofReal (cw k * δs k))^2
+      ≤ ENNReal.ofReal (1300 * (k:ℝ) * δs k) * volume (Fk k) := by
+    intro k hk4
+    have h1 : ((good k).card : ℝ≥0∞) * (ENNReal.ofReal (cw k * δs k))^2
+        = ∑ i ∈ good k, (ENNReal.ofReal (cw k * δs k))^2 := by
+      rw [Finset.sum_const, nsmul_eq_mul]
+    rw [h1]
+    have h2 : ∀ i ∈ good k, (ENNReal.ofReal (cw k * δs k))^2
+        ≤ (volume (tube (hk k) (Real.pi*(i:ℝ)/Nk k) (aCtr k i) ∩ Fk k))^2 := by
+      intro i hi
+      have h3 : ENNReal.ofReal (cw k * δs k)
+          ≤ volume (tube (hk k) (Real.pi*(i:ℝ)/Nk k) (aCtr k i) ∩ Fk k) := by
+        have h4 : goodp k i := (hgoodmem_iff k i hk4).mp hi
+        simpa only [hgoodp] using h4
+      exact pow_le_pow_left' h3 2
+    refine (Finset.sum_le_sum h2).trans ?_
+    refine (Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ (good k))
+      (fun i _ _ => bot_le)).trans ?_
+    refine (operator_bound (hNkpos k) (hhkpos k) (aCtr k) (Fk k) (hFkmeas k)).trans ?_
+    refine mul_le_mul_of_nonneg_right (ENNReal.ofReal_le_ofReal ?_) bot_le
+    simp only [hhk, hδsinv k, hNkcast k]
+    have h1 : (0:ℝ) < (2:ℝ)^k := by positivity
+    have hk1 : (1:ℝ) ≤ (k:ℝ) := by exact_mod_cast (by omega : 1 ≤ k)
+    rw [show Real.log ((2:ℝ)^k) = (k:ℝ) * Real.log 2 by rw [Real.log_pow]]
+    have hlog2 : Real.log 2 ≤ 1 := by linarith [Real.log_two_lt_d9]
+    field_simp
+    nlinarith [h1, hk1, hlog2]
+  -- ## Step 5: bounding the volume of `Fk`
+  have hFbound : ∀ k, volume (Fk k)
+      ≤ ENNReal.ofReal (100 * δs k ^ 2) * ((ENat.card ↥(Jl k) : ℕ∞) : ℝ≥0∞) := by
+    intro k
+    have h1 : volume (Fk k)
+        ≤ ∑' n : ↥(Jl k), volume (Set.Icc (ctr (n:ℕ) - (ρ (n:ℕ) + hk k) • 1)
+            (ctr (n:ℕ) + (ρ (n:ℕ) + hk k) • 1)) := by
+      rw [hFk]
+      simp only []
+      rw [show (⋃ n ∈ Jl k, Set.Icc (ctr n - (ρ n + hk k) • 1) (ctr n + (ρ n + hk k) • 1))
+          = ⋃ n : ↥(Jl k), Set.Icc (ctr (n:ℕ) - (ρ (n:ℕ) + hk k) • 1)
+              (ctr (n:ℕ) + (ρ (n:ℕ) + hk k) • 1) by
+        ext x
+        constructor
+        · intro hx
+          rw [mem_iUnion₂_iff] at hx
+          obtain ⟨n, hn, hxn⟩ := hx
+          exact Set.mem_iUnion.mpr ⟨⟨n, hn⟩, hxn⟩
+        · intro hx
+          rw [Set.mem_iUnion] at hx
+          obtain ⟨n, hxn⟩ := hx
+          rw [mem_iUnion₂_iff]
+          exact ⟨n.val, n.property, hxn⟩]
+      exact measure_iUnion_le _
+    refine h1.trans ?_
+    have h2 : ∀ n : ↥(Jl k), volume (Set.Icc (ctr (n:ℕ) - (ρ (n:ℕ) + hk k) • 1)
+        (ctr (n:ℕ) + (ρ (n:ℕ) + hk k) • 1)) ≤ ENNReal.ofReal (100 * δs k ^ 2) := by
+      intro n
+      have hnJ : (n : ℕ) ∈ Jl k := n.2
+      have hρk : ρ (n:ℕ) ≤ δs k := ((hmemJ k (n:ℕ)).mp hnJ).2
+      have h2a : (2 * (ρ (n:ℕ) + hk k)) ^ 2 ≤ 100 * δs k ^ 2 := by
+        rw [hhk] at *
+        nlinarith [hρk, hδspos k, hρnn (n:ℕ)]
+      calc volume (Set.Icc (ctr (n:ℕ) - (ρ (n:ℕ) + hk k) • 1)
+              (ctr (n:ℕ) + (ρ (n:ℕ) + hk k) • 1))
+          = ENNReal.ofReal ((2 * (ρ (n:ℕ) + hk k)) ^ 2) := by
+            rw [Real.volume_Icc_pi, Fin.prod_univ_two]
+            simp only [Pi.sub_apply, Pi.add_apply, Pi.one_apply, Pi.smul_apply, smul_eq_mul,
+              mul_one]
+            rw [show ctr (n:ℕ) 0 + (ρ (n:ℕ) + hk k) - (ctr (n:ℕ) 0 - (ρ (n:ℕ) + hk k))
+                  = 2 * (ρ (n:ℕ) + hk k) by ring,
+              show ctr (n:ℕ) 1 + (ρ (n:ℕ) + hk k) - (ctr (n:ℕ) 1 - (ρ (n:ℕ) + hk k))
+                  = 2 * (ρ (n:ℕ) + hk k) by ring,
+              ← ENNReal.ofReal_mul (by linarith [hρnn (n:ℕ), hhkpos k]), sq]
+        _ ≤ ENNReal.ofReal (100 * δs k ^ 2) := ENNReal.ofReal_le_ofReal h2a
+    calc ∑' n : ↥(Jl k), volume (Set.Icc (ctr (n:ℕ) - (ρ (n:ℕ) + hk k) • 1)
+            (ctr (n:ℕ) + (ρ (n:ℕ) + hk k) • 1))
+        ≤ ∑' n : ↥(Jl k), ENNReal.ofReal (100 * δs k ^ 2) := ENNReal.tsum_le_tsum h2
+      _ = ENNReal.ofReal (100 * δs k ^ 2) * ((ENat.card ↥(Jl k) : ℕ∞) : ℝ≥0∞) := by
+          rw [ENNReal.tsum_const]
+          ring
+  -- ## Step 6: the per-scale bound on the cover sum
+  have hJk : ∀ k, 4 ≤ k → ((good k).card : ℝ≥0∞) * ENNReal.ofReal (cw k ^ 2 * δs k ^ 2)
+        / ENNReal.ofReal (130000 * (k:ℝ) * δs k ^ 3) * ENNReal.ofReal ((δs (k+1)) ^ d)
+      ≤ ∑' n : ↥(Jl k), (Metric.ediam (u n)) ^ d := by
+    intro k hk4
+    have hA : ((good k).card : ℝ≥0∞) * (ENNReal.ofReal (cw k * δs k))^2
+        ≤ ENNReal.ofReal (130000 * (k:ℝ) * δs k ^ 3) * ((ENat.card ↥(Jl k) : ℕ∞) : ℝ≥0∞) := by
+      have h2 := (hop k hk4).trans (mul_le_mul_of_nonneg_left (hFbound k) bot_le)
+      refine h2.trans (le_of_eq ?_)
+      rw [← mul_assoc, ← ENNReal.ofReal_mul (mul_nonneg (mul_nonneg (by norm_num)
+        (Nat.cast_nonneg k)) (le_of_lt (hδspos k)))]
+      congr 1
+      ring
+    have hsq : ((good k).card : ℝ≥0∞) * ENNReal.ofReal (cw k ^ 2 * δs k ^ 2)
+        = ((good k).card : ℝ≥0∞) * (ENNReal.ofReal (cw k * δs k))^2 := by
+      have h1 : (ENNReal.ofReal (cw k * δs k))^2
+          = ENNReal.ofReal ((cw k * δs k)^2) := by
+        rw [sq, ← ENNReal.ofReal_mul (mul_nonneg (le_of_lt (hcwpos k (by omega)))
+          (le_of_lt (hδspos k)))]
+        congr 1
+        ring
+      rw [h1, show (cw k * δs k)^2 = cw k^2 * δs k^2 by ring]
+    have hD : ((good k).card : ℝ≥0∞) * ENNReal.ofReal (cw k ^ 2 * δs k ^ 2)
+        / ENNReal.ofReal (130000 * (k:ℝ) * δs k ^ 3)
+        ≤ ((ENat.card ↥(Jl k) : ℕ∞) : ℝ≥0∞) := by
+      rw [ENNReal.div_le_iff_le_mul
+        (Or.inl (ne_of_gt (ENNReal.ofReal_pos.mpr (mul_pos (mul_pos (by norm_num)
+          (by exact_mod_cast (by omega : 0 < k))) (pow_pos (hδspos k) 3)))))
+        (Or.inl ENNReal.ofReal_ne_top)]
+      rw [hsq]
+      exact hA.trans_eq (mul_comm _ _)
+    have h3 : ∀ n : ↥(Jl k), ENNReal.ofReal ((δs (k+1)) ^ d) ≤ (Metric.ediam (u n)) ^ d := by
+      intro n
+      have hnJ : (n : ℕ) ∈ Jl k := n.2
+      have h4 : δs (k+1) ≤ ρ (n:ℕ) := le_of_lt ((hmemJ k (n:ℕ)).mp hnJ).1
+      rw [hρeq (n:ℕ), ENNReal.ofReal_rpow_of_nonneg (hρnn (n:ℕ)) (le_of_lt hd0)]
+      exact ENNReal.ofReal_le_ofReal (Real.rpow_le_rpow (le_of_lt (hδspos (k+1))) h4
+        (le_of_lt hd0))
+    refine (mul_le_mul_of_nonneg_right hD bot_le).trans ?_
+    calc (((ENat.card ↥(Jl k) : ℕ∞) : ℝ≥0∞)) * ENNReal.ofReal ((δs (k+1)) ^ d)
+        = ∑' _ : ↥(Jl k), ENNReal.ofReal ((δs (k+1)) ^ d) := by rw [ENNReal.tsum_const]
+      _ ≤ ∑' n : ↥(Jl k), (Metric.ediam (u n)) ^ d := ENNReal.tsum_le_tsum h3
+  -- ## Step 7: the counting of directions
+  have hARCdisj : ∀ k (i j : Fin (Nk k)), i ≠ j → Disjoint (Arc k i) (Arc k j) := by
+    intro k i j hij
+    rw [hArc, Set.disjoint_left]
+    intro s hs hs'
+    rw [Set.mem_Ico] at hs hs'
+    have hne : (i : ℕ) ≠ (j : ℕ) := fun h => hij (Fin.ext h)
+    have hN : (0:ℝ) < ((Nk k : ℕ) : ℝ) := by positivity
+    rcases lt_or_gt_of_ne hne with h | h
+    · have h1 : ((i:ℝ)+1)/Nk k ≤ (j:ℝ)/Nk k := by
+        rw [div_le_div_iff_of_pos_right hN]
+        exact_mod_cast (by omega : (i:ℕ) + 1 ≤ (j:ℕ))
+      linarith [hs.2, hs'.1]
+    · have h1 : ((j:ℝ)+1)/Nk k ≤ (i:ℝ)/Nk k := by
+        rw [div_le_div_iff_of_pos_right hN]
+        exact_mod_cast (by omega : (j:ℕ) + 1 ≤ (i:ℕ))
+      linarith [hs'.2, hs.1]
+  have hcount : 1 ≤ ∑' k, ((good k).card : ℝ≥0∞) * ENNReal.ofReal (((Nk k : ℕ) : ℝ)⁻¹) := by
+    have h1 : Set.Ico (0:ℝ) 1 ⊆ ⋃ k, ⋃ i ∈ good k, Arc k i := by
+      intro s hs
+      obtain ⟨k, hk4, hgood'⟩ := hpigeon s hs
+      obtain ⟨i, hi⟩ := exists_arc (Nk k) (hNkpos k) s hs
+      rw [Set.mem_iUnion]
+      refine ⟨k, ?_⟩
+      rw [mem_iUnion₂_finset_iff]
+      exact ⟨i, hgoodmem k hk4 i ⟨s, hi, hgood'⟩, hi⟩
+    have h2 : volume (Set.Ico (0:ℝ) 1)
+        ≤ volume (⋃ k, ⋃ i ∈ good k, Arc k i) := measure_mono h1
+    have h3 : volume (Set.Ico (0:ℝ) 1) = 1 := by rw [Real.volume_Ico]; norm_num
+    rw [h3] at h2
+    refine h2.trans ((measure_iUnion_le _).trans ?_)
+    refine ENNReal.tsum_le_tsum fun k => ?_
+    have h4 : volume (⋃ i ∈ good k, Arc k i) = ∑ i ∈ good k, volume (Arc k i) :=
+      measure_biUnion_finset (fun i _ j _ hij => hARCdisj k i j hij)
+        (fun i _ => measurableSet_Ico)
+    rw [h4, Finset.sum_congr rfl (fun i _ => hArcvol k i), Finset.sum_const, nsmul_eq_mul]
+  -- ## Step 8: assembly
+  have hdisj : ∑' k, (∑' n : ↥(Jl k), (Metric.ediam (u n)) ^ d)
+      ≤ ∑' n, (Metric.ediam (u n)) ^ d := by
+    rw [← ENNReal.tsum_biUnion (f := fun n : ℕ => (Metric.ediam (u n)) ^ d)
+      (t := Jl) (fun i _ j _ hij => hJdisj i j hij)]
+    rw [show (∑' x : ↥(⋃ k, Jl k), (Metric.ediam (u (x : ℕ))) ^ d)
+        = ∑' n : ℕ, (⋃ k, Jl k).indicator (fun n => (Metric.ediam (u n)) ^ d) n from
+      tsum_subtype (⋃ k, Jl k) (fun n => (Metric.ediam (u n)) ^ d)]
+    exact ENNReal.tsum_le_tsum fun n => Set.indicator_le_self _ _ n
+  have hpow2 : ∀ (m : ℕ), ((1:ℝ)/2)^m = (2:ℝ)^(-(m:ℝ)) := by
+    intro m
+    rw [one_div, inv_pow, ← Real.rpow_natCast (2:ℝ) m, Real.rpow_neg (by norm_num : (0:ℝ) ≤ 2)]
+  have hval : ∀ k : ℕ, 4 ≤ k → cw k ^ 2 * δs k ^ 2 * (δs (k+1)) ^ d
+      / (130000 * (k:ℝ) * δs k ^ 3)
+      = δ ^ 2 * (2:ℝ)^(-d) / 130000 * (k:ℝ) * (2:ℝ)^(-(k:ℝ)) := by
+    intro k hk4
+    have hk0 : (0:ℝ) < (k:ℝ) := by exact_mod_cast (by omega : 0 < k)
+    have h1 : cw k ^ 2 = δ ^ 2 * (k:ℝ) ^ 2 * (2:ℝ)^(-((k:ℝ)*(2-d))) := by
+      have h3 : (0:ℝ) < (2:ℝ)^((k:ℝ)*(2-d)) := by positivity
+      have h5 : cw k ^ 2 * (2:ℝ)^((k:ℝ)*(2-d)) = δ ^ 2 * ((k:ℝ) * (k:ℝ)) := by
+        have h2 := hcwkey k (by omega : 1 ≤ k)
+        field_simp at h2
+        linarith [h2]
+      calc cw k ^ 2 = cw k ^ 2 * (2:ℝ)^((k:ℝ)*(2-d)) / (2:ℝ)^((k:ℝ)*(2-d)) := by
+              rw [mul_div_cancel_right₀ _ (ne_of_gt h3)]
+        _ = δ ^ 2 * ((k:ℝ) * (k:ℝ)) / (2:ℝ)^((k:ℝ)*(2-d)) := by rw [h5]
+        _ = δ ^ 2 * (k:ℝ) ^ 2 * (2:ℝ)^(-((k:ℝ)*(2-d))) := by
+              rw [div_eq_mul_inv, Real.rpow_neg (by norm_num : (0:ℝ) ≤ 2)]; ring
+    have h4 : δs k = (2:ℝ)^(-(k:ℝ)) := by rw [hδsdef]; exact hpow2 k
+    have h5 : (δs (k+1)) ^ d = (2:ℝ)^(-((k:ℝ)+1)*d) := by
+      rw [hδsdef, hpow2 (k+1), ← Real.rpow_mul (by norm_num : (0:ℝ) ≤ 2)]
+      congr 1
+      push_cast
+      ring
+    have h6 : ((2:ℝ)^(-(k:ℝ)))^2 = (2:ℝ)^(-2*(k:ℝ)) := by
+      rw [← Real.rpow_natCast ((2:ℝ)^(-(k:ℝ))) 2, ← Real.rpow_mul (by norm_num : (0:ℝ) ≤ 2)]
+      congr 1
+      ring
+    have h7 : ((2:ℝ)^(-(k:ℝ)))^3 = (2:ℝ)^(-3*(k:ℝ)) := by
+      rw [← Real.rpow_natCast ((2:ℝ)^(-(k:ℝ))) 3, ← Real.rpow_mul (by norm_num : (0:ℝ) ≤ 2)]
+      congr 1
+      ring
+    rw [h1, h4, h5, h6, h7]
+    rw [show δ ^ 2 * (k:ℝ) ^ 2 * (2:ℝ)^(-((k:ℝ)*(2-d))) * (2:ℝ)^(-2*(k:ℝ))
+          * (2:ℝ)^(-((k:ℝ)+1)*d) / (130000 * (k:ℝ) * (2:ℝ)^(-3*(k:ℝ)))
+        = (δ ^ 2 * (k:ℝ) ^ 2 / (130000 * (k:ℝ)))
+          * ((2:ℝ)^(-((k:ℝ)*(2-d))) * (2:ℝ)^(-2*(k:ℝ)) * (2:ℝ)^(-((k:ℝ)+1)*d)
+            / (2:ℝ)^(-3*(k:ℝ))) by ring]
+    rw [show (2:ℝ)^(-((k:ℝ)*(2-d))) * (2:ℝ)^(-2*(k:ℝ)) * (2:ℝ)^(-((k:ℝ)+1)*d)
+          / (2:ℝ)^(-3*(k:ℝ)) = (2:ℝ)^(-d) * (2:ℝ)^(-(k:ℝ)) by
+      rw [div_eq_mul_inv, ← Real.rpow_neg (by norm_num : (0:ℝ) ≤ 2),
+        ← Real.rpow_add (by norm_num : (0:ℝ) < 2), ← Real.rpow_add (by norm_num : (0:ℝ) < 2),
+        ← Real.rpow_add (by norm_num : (0:ℝ) < 2),
+        ← Real.rpow_add (by norm_num : (0:ℝ) < 2)]
+      congr 1
+      ring]
+    field_simp
+
+  have hNinv : ∀ k, (((Nk k : ℕ) : ℝ)⁻¹) = (2:ℝ)^(-(k:ℝ)) := fun k =>
+    (hδsinv k).symm.trans (by rw [hδsdef]; exact hpow2 k)
+  have hcount' : 1 ≤ ∑' k, ((good k).card : ℝ≥0∞) * ENNReal.ofReal ((2:ℝ)^(-(k:ℝ))) := by
+    refine hcount.trans (le_of_eq ?_)
+    exact tsum_congr fun k => by rw [hNinv k]
+  have hkeyC : ∀ k, ((good k).card : ℝ≥0∞) * ENNReal.ofReal (δ ^ 2 * (2:ℝ)^(-d) / 130000)
+      * ENNReal.ofReal ((2:ℝ)^(-(k:ℝ)))
+      ≤ ∑' n : ↥(Jl k), (Metric.ediam (u n)) ^ d := by
+    intro k
+    by_cases hk4 : 4 ≤ k
+    · have hpos : (0:ℝ) < 130000 * (k:ℝ) * δs k ^ 3 :=
+        mul_pos (mul_pos (by norm_num) (by exact_mod_cast (by omega : 0 < k))) (pow_pos (hδspos k) 3)
+      have hw : (0:ℝ) ≤ cw k ^ 2 * δs k ^ 2 := by positivity
+      have hconv : ENNReal.ofReal (cw k ^ 2 * δs k ^ 2)
+            / ENNReal.ofReal (130000 * (k:ℝ) * δs k ^ 3) * ENNReal.ofReal ((δs (k+1)) ^ d)
+          = ENNReal.ofReal (cw k ^ 2 * δs k ^ 2 * (δs (k+1)) ^ d
+              / (130000 * (k:ℝ) * δs k ^ 3)) := by
+        rw [div_eq_mul_inv, ← ENNReal.ofReal_inv_of_pos hpos, ← ENNReal.ofReal_mul hw,
+          ← ENNReal.ofReal_mul (mul_nonneg hw (inv_nonneg.mpr hpos.le))]
+        congr 1
+        ring
+      have h3 : ENNReal.ofReal (δ ^ 2 * (2:ℝ)^(-d) / 130000) * ENNReal.ofReal ((2:ℝ)^(-(k:ℝ)))
+          ≤ ENNReal.ofReal (cw k ^ 2 * δs k ^ 2 * (δs (k+1)) ^ d
+              / (130000 * (k:ℝ) * δs k ^ 3)) := by
+        rw [← ENNReal.ofReal_mul (by positivity : (0:ℝ) ≤ δ ^ 2 * (2:ℝ)^(-d) / 130000),
+          hval k hk4]
+        refine ENNReal.ofReal_le_ofReal ?_
+        have hk1 : (1:ℝ) ≤ (k:ℝ) := by exact_mod_cast (by omega : 1 ≤ k)
+        have hC : (0:ℝ) ≤ δ ^ 2 * (2:ℝ)^(-d) / 130000 := by positivity
+        have h2k : (0:ℝ) < (2:ℝ)^(-(k:ℝ)) := Real.rpow_pos_of_pos (by norm_num) _
+        have hCk : (0:ℝ) ≤ δ ^ 2 * (2:ℝ)^(-d) / 130000 * (2:ℝ)^(-(k:ℝ)) := mul_nonneg hC h2k.le
+        calc δ ^ 2 * (2:ℝ)^(-d) / 130000 * (2:ℝ)^(-(k:ℝ))
+            = (δ ^ 2 * (2:ℝ)^(-d) / 130000 * (2:ℝ)^(-(k:ℝ))) * 1 := (mul_one _).symm
+          _ ≤ (δ ^ 2 * (2:ℝ)^(-d) / 130000 * (2:ℝ)^(-(k:ℝ))) * (k:ℝ) :=
+              mul_le_mul_of_nonneg_left hk1 hCk
+          _ = δ ^ 2 * (2:ℝ)^(-d) / 130000 * (k:ℝ) * (2:ℝ)^(-(k:ℝ)) := by ring
+      calc ((good k).card : ℝ≥0∞) * ENNReal.ofReal (δ ^ 2 * (2:ℝ)^(-d) / 130000)
+            * ENNReal.ofReal ((2:ℝ)^(-(k:ℝ)))
+          = ((good k).card : ℝ≥0∞) * (ENNReal.ofReal (δ ^ 2 * (2:ℝ)^(-d) / 130000)
+              * ENNReal.ofReal ((2:ℝ)^(-(k:ℝ)))) := by ring
+        _ ≤ ((good k).card : ℝ≥0∞) * (ENNReal.ofReal (cw k ^ 2 * δs k ^ 2)
+              / ENNReal.ofReal (130000 * (k:ℝ) * δs k ^ 3) * ENNReal.ofReal ((δs (k+1)) ^ d)) :=
+            mul_le_mul_of_nonneg_left (h3.trans (le_of_eq hconv.symm)) bot_le
+        _ = ((good k).card : ℝ≥0∞) * ENNReal.ofReal (cw k ^ 2 * δs k ^ 2)
+              / ENNReal.ofReal (130000 * (k:ℝ) * δs k ^ 3) * ENNReal.ofReal ((δs (k+1)) ^ d) := by
+            simp only [div_eq_mul_inv]; ring
+        _ ≤ ∑' n : ↥(Jl k), (Metric.ediam (u n)) ^ d := hJk k hk4
+    · rw [show good k = ∅ from by rw [hgood]; simp [hk4]]
+      simp
+  have hfinal : ENNReal.ofReal (δ ^ 2 * (2:ℝ)^(-d) / 130000)
+      ≤ ∑' n, (Metric.ediam (u n)) ^ d := by
+    calc ENNReal.ofReal (δ ^ 2 * (2:ℝ)^(-d) / 130000)
+        = ENNReal.ofReal (δ ^ 2 * (2:ℝ)^(-d) / 130000) * 1 := (mul_one _).symm
+      _ ≤ ENNReal.ofReal (δ ^ 2 * (2:ℝ)^(-d) / 130000)
+            * ∑' k, ((good k).card : ℝ≥0∞) * ENNReal.ofReal ((2:ℝ)^(-(k:ℝ))) :=
+          mul_le_mul_of_nonneg_left hcount' bot_le
+      _ = ∑' k, ENNReal.ofReal (δ ^ 2 * (2:ℝ)^(-d) / 130000)
+            * (((good k).card : ℝ≥0∞) * ENNReal.ofReal ((2:ℝ)^(-(k:ℝ)))) := by
+          rw [ENNReal.tsum_mul_left]
+      _ = ∑' k, ((good k).card : ℝ≥0∞) * ENNReal.ofReal (δ ^ 2 * (2:ℝ)^(-d) / 130000)
+            * ENNReal.ofReal ((2:ℝ)^(-(k:ℝ))) := by
+          refine tsum_congr fun k => by ring
+      _ ≤ ∑' k, ∑' n : ↥(Jl k), (Metric.ediam (u n)) ^ d := ENNReal.tsum_le_tsum hkeyC
+      _ ≤ ∑' n, (Metric.ediam (u n)) ^ d := hdisj
+  rw [← show (∑' n, (Metric.ediam (u n)) ^ d) = ∑' n, (Metric.ediam (t n)) ^ d from
+    tsum_congr fun n => by rw [hρeq n, hρeqt n]]
+  exact hfinal
+
+/-- **The multi-scale covering bound.**  For every `d < 2` there is a nonzero constant `c` such
+that *every* countable cover of a Kakeya set `E ⊆ Fin 2 → ℝ` by sets of diameter at most `1/16`
+satisfies `∑ₙ (ediam (t n)) ^ d ≥ c`.  No boundedness of `E` is assumed: the bound is proved for
+the whole (typically unbounded) set. -/
+theorem cover_sum_bound {E : Set (Fin 2 → ℝ)}
+    (hE : ∀ θ : ℝ, ∃ a : Fin 2 → ℝ, seg θ a ⊆ E) (d : ℝ) (hd0 : 0 < d) (hd2 : d < 2) :
+    ∃ c : ℝ≥0∞, c ≠ 0 ∧ ∀ t : ℕ → Set (Fin 2 → ℝ),
+      (∀ n, Metric.ediam (t n) ≤ ENNReal.ofReal (1 / 16)) → E ⊆ ⋃ n, t n →
+      c ≤ ∑' n, (Metric.ediam (t n)) ^ d := by
+  obtain ⟨δ, ρ, cw, hδpos, hρpos, hρlt, hcwdef, hcwsum, hcwkey⟩ :=
+    exists_threshold_weights d hd2
+  refine ⟨ENNReal.ofReal (δ ^ 2 * (2:ℝ) ^ (-d) / 130000), ?_, ?_⟩
+  · rw [ne_eq, ENNReal.ofReal_eq_zero]
+    exact not_le.mpr (by positivity)
+  · intro t hEd hcov
+    exact cover_sum_bound_core d hd0 hd2 δ hδpos cw
+      (fun k hk => by
+        rw [hcwdef k]
+        exact mul_pos (mul_pos hδpos (pow_pos hρpos k))
+          (by exact_mod_cast (by omega : 0 < k)))
+      (fun k hk => hcwkey k hk) hcwsum t hE hEd hcov
+
+end Kakeya

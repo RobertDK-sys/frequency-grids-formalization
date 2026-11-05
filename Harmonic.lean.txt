@@ -1,0 +1,48 @@
+/-
+Kakeya/Harmonic.lean
+
+The two analytic inputs for the row-sum bound of the tube matrix:
+* the harmonic sum bound `∑_{d=1}^{N} 1/d ≤ 1 + log N`;
+* the trigonometric lower bound `sin (π d / N) ≥ 2d/N` for `2d ≤ N`,
+  which turns the angular separation of two directions into a bound on `1/|sin|`.
+-/
+import Mathlib
+
+open scoped BigOperators
+open Finset
+
+namespace Kakeya
+
+/-- The harmonic number, cast to `ℝ`, is the sum of the reciprocals. -/
+lemma harmonic_cast_eq (N : ℕ) :
+    (harmonic N : ℝ) = ∑ d ∈ Finset.Icc 1 N, (d : ℝ)⁻¹ := by
+  rw [harmonic_eq_sum_Icc]
+  simp [Rat.cast_sum, Rat.cast_inv]
+
+/-- `∑_{d=1}^{N} 1/d ≤ 1 + log N`. -/
+lemma sum_Icc_inv_le_one_add_log (N : ℕ) :
+    ∑ d ∈ Finset.Icc 1 N, (d : ℝ)⁻¹ ≤ 1 + Real.log N := by
+  rw [← harmonic_cast_eq]
+  exact harmonic_le_one_add_log N
+
+/-- `sin (π d / N) ≥ 2d/N` whenever `2d ≤ N`. -/
+lemma sin_pi_mul_div_lower {N d : ℕ} (hN : 0 < N) (h2d : 2 * d ≤ N) :
+    2 * (d : ℝ) / N ≤ Real.sin (Real.pi * d / N) := by
+  have hN' : (0 : ℝ) < (N : ℝ) := by exact_mod_cast hN
+  have h2d' : (2 : ℝ) * (d : ℝ) ≤ (N : ℝ) := by exact_mod_cast h2d
+  have hx0 : 0 ≤ Real.pi * (d : ℝ) / N := by positivity
+  have hxd : Real.pi * (d : ℝ) / N ≤ Real.pi / 2 := by
+    rw [div_le_iff₀ hN']
+    nlinarith [Real.pi_pos]
+  have h := Real.mul_le_sin hx0 hxd
+  refine le_trans (le_of_eq ?_) h
+  field_simp
+
+/-- `1/min(a,b) ≤ 1/a + 1/b` for positive reals. -/
+lemma inv_min_le (a b : ℝ) (ha : 0 < a) (hb : 0 < b) :
+    (min a b)⁻¹ ≤ a⁻¹ + b⁻¹ := by
+  rcases le_total a b with h | h
+  · rw [min_eq_left h]; exact le_add_of_nonneg_right (inv_nonneg.mpr hb.le)
+  · rw [min_eq_right h]; exact le_add_of_nonneg_left (inv_nonneg.mpr ha.le)
+
+end Kakeya

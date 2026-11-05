@@ -1,0 +1,56 @@
+/-
+Kakeya/Dimension.lean
+
+Layer C: from neighbourhood volume to Hausdorff dimension.
+
+The planar Kakeya theorem `dim_H E = 2` is proved by Davies (1971) via pole/polar duality,
+Marstrand's projection theorem and the product (slicing) theorem for Hausdorff measures; it
+is *not* a consequence of the neighbourhood-area bound alone (a dense countable set has
+neighbourhood area bounded below but Hausdorff dimension `0`).  The route taken in this
+development is instead the Córdoba one: the *uniform-over-directions* second-moment (operator)
+bound of `Kakeya.Operator`, turned into a lower bound for the `d`-diameter sums of arbitrary
+covers of the Kakeya set, for every `d < 2`.
+
+This file records the unconditional upper bound.  The lower bound is organised as follows.
+
+* `Kakeya.Operator` : the discrete `L²` bound `∑ᵢ |Tᵢ ∩ S|² ≤ 2 M |S|` for `N` equally spaced
+  directions, with `M` given by the row-sum estimate of `Kakeya.RowSum`.
+* `Kakeya.Cover` : the geometric input converting one-dimensional coverage of a Kakeya segment
+  into a lower bound for `area (Tᵢ ∩ F)`, and the full multi-scale argument (scale decomposition of
+  a countable cover, direction-circle counting, discrete operator bound) producing the covering
+  bound `cover_sum_bound`.
+* `Kakeya.Hausdorff` : a covering bound of the above shape implies `μH[d] E ≠ 0`, and hence
+  `dimH E ≥ 2`; plus the transfer between `Plane` and the `Fin 2 → ℝ` model of the tube theory.
+* `Kakeya.Main` : the final theorem `planar_kakeya_hausdorff_dimension`.
+
+The covering bound that `Kakeya.Hausdorff` consumes is, for every `d < 2`, the existence of
+`c ≠ 0` with `∑ₙ (ediam (t n)) ^ d ≥ c` for every countable cover `t` of `E` with
+`ediam (t n) ≤ 1/16`.  Its proof combines four ingredients:
+
+1. the scale layers `J k = {n | 2 ^ (-(k+1)) < ediam (t n) ≤ 2 ^ (-k)}` and the disjoint
+   refinement `H k = G k \ ⋃ {G k' | k' < k}` of `G k = ⋃ {t n | n ∈ J k}`;
+2. the one-dimensional coverage function `λ k θ = |{x ∈ Icc (-(3/8)) (3/8) | a θ + x • dirFi2 θ ∈ H k}|`
+   of a Kakeya segment, with `∑ k, λ k θ = 3/4`;
+3. `Kakeya.volume_cthickening_image_le` together with the inclusion of a thickened inner part of
+   the segment in a tube of direction within `4 · 2 ^ (-k)` of it, giving `|T ∩ F k| ≥ c k |T| / 2`
+   for the tubes of `Kakeya.operator_bound` at scale `k` and `F k` a neighbourhood of `G k`;
+4. the discrete operator bound of `Kakeya.operator_bound`, whose Schur constant
+   `2 h k + 20 (h k)² N k (1 + log N k)` is `≍ k 2 ^ (-k)` at scale `k`.
+-/
+import Mathlib
+import Kakeya.Basic
+
+open scoped MeasureTheory ENNReal NNReal Topology
+open MeasureTheory Set Topology
+
+namespace Kakeya
+
+/-- The Hausdorff dimension of a subset of the plane is at most `2`. -/
+theorem dimH_le_two (E : Set Plane) : dimH E ≤ 2 := by
+  have h : dimH (univ : Set Plane) = (2 : ℝ≥0∞) := by
+    rw [Real.dimH_of_nonempty_interior (s := (univ : Set Plane))
+      (by rw [interior_univ]; exact univ_nonempty), finrank_euclideanSpace]
+    norm_num
+  exact (dimH_mono (subset_univ E)).trans h.le
+
+end Kakeya

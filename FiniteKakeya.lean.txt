@@ -1,0 +1,43 @@
+/-
+Kakeya/FiniteKakeya.lean
+
+Layer B: the finite / discretised Kakeya estimate.
+
+The engine is `Kakeya.second_moment`.  Applying it to a family of `N` thin tubes of
+area `c` whose total pairwise overlap is at most `M` gives
+
+  |⋃ᵢ Tᵢ| ≥ (N · c)² / M,
+
+which for the geometric input of `Kakeya.Tubes` (`N ≈ 1/δ` directions, `c = 2δ`,
+`M ≲ log (1/δ)`) yields Córdoba's bound `|⋃ᵢ Tᵢ| ≳ 1 / log (1/δ)`.
+-/
+import Mathlib
+import Kakeya.Basic
+import Kakeya.SecondMoment
+
+open scoped MeasureTheory ENNReal NNReal Topology
+open MeasureTheory Set Topology Finset
+
+namespace Kakeya
+
+/-- **Layer B (multiplicative form).** If the total `μ`-mass of the family is at least `N · c`
+and the total pairwise overlap is at most `M`, then `(N · c)² ≤ M · |⋃ᵢ Tᵢ|`. -/
+theorem finite_kakeya_bound {α : Type*} [MeasurableSpace α] (μ : Measure α) {ι : Type*}
+    [Fintype ι] (T : ι → Set α) (hT : ∀ i, MeasurableSet (T i)) (Nc M : ℝ≥0∞)
+    (h1 : Nc ≤ ∑ i, μ (T i)) (h2 : (∑ i, ∑ j, μ (T i ∩ T j)) ≤ M) :
+    Nc ^ 2 ≤ M * μ (⋃ i, T i) := by
+  calc Nc ^ 2 ≤ (∑ i, μ (T i)) ^ 2 := by gcongr
+    _ ≤ (∑ i, ∑ j, μ (T i ∩ T j)) * μ (⋃ i, T i) := second_moment μ T hT
+    _ ≤ M * μ (⋃ i, T i) := by gcongr
+
+/-- **Layer B (lower bound form).** With `M` finite and nonzero, the union of the family has
+measure at least `(N · c)² / M`. -/
+theorem finite_kakeya_bound_div {α : Type*} [MeasurableSpace α] (μ : Measure α) {ι : Type*}
+    [Fintype ι] (T : ι → Set α) (hT : ∀ i, MeasurableSet (T i)) (Nc M : ℝ≥0∞)
+    (h1 : Nc ≤ ∑ i, μ (T i)) (h2 : (∑ i, ∑ j, μ (T i ∩ T j)) ≤ M)
+    (hM : M ≠ 0) (hMtop : M ≠ ⊤) :
+    Nc ^ 2 / M ≤ μ (⋃ i, T i) := by
+  rw [ENNReal.div_le_iff_le_mul (Or.inl hM) (Or.inl hMtop)]
+  simpa [mul_comm] using finite_kakeya_bound μ T hT Nc M h1 h2
+
+end Kakeya

@@ -1,0 +1,250 @@
+/-
+Kakeya/Operator.lean
+
+The `L²` bound for the (smeared) Kakeya operator, in the finite/discrete setting: for the `N`
+equally spaced directions `πi/N` and tubes of width `2h` with `Nh = 1`, the second moment of
+the tube averages of `χ_S` is at most `(1 + log N) · |S|`.  No `L²` spaces are needed: the
+only function fed to the operator is `χ_S`, so every quantity is a `volume`.
+-/
+import Mathlib
+import Kakeya.Schur
+import Kakeya.RowSum
+import Kakeya.SecondMoment
+import Kakeya.Tube
+
+open scoped MeasureTheory ENNReal NNReal Topology BigOperators
+open MeasureTheory Set Topology Finset
+
+namespace Kakeya
+
+/-- `a * b ≤ a^2 + b^2` in `ℝ≥0∞`. -/
+lemma ENNReal.mul_le_add_sq (a b : ℝ≥0∞) : a * b ≤ a ^ 2 + b ^ 2 := by
+  rcases le_total a b with h | h
+  · calc a * b ≤ b * b := mul_le_mul' h le_rfl
+      _ = b ^ 2 := by ring
+      _ ≤ a ^ 2 + b ^ 2 := by simp
+  · calc a * b ≤ a * a := mul_le_mul' le_rfl h
+      _ = a ^ 2 := by ring
+      _ ≤ a ^ 2 + b ^ 2 := by simp
+
+/-- **Schur test in `ℝ≥0∞`.** -/
+theorem schur_test_ennreal {ι : Type*} [Fintype ι] {B : ι → ι → ℝ≥0∞}
+    (hsym : ∀ i j, B i j = B j i) {M : ℝ≥0∞} (hM : ∀ i, ∑ j, B i j ≤ M) (c : ι → ℝ≥0∞) :
+    ∑ i, ∑ j, c i * c j * B i j ≤ 2 * M * ∑ i, c i ^ 2 := by
+  have step1 : ∑ i, ∑ j, c i * c j * B i j ≤ ∑ i, ∑ j, (c i ^ 2 + c j ^ 2) * B i j := by
+    refine sum_le_sum fun i _ => sum_le_sum fun j _ => ?_
+    exact mul_le_mul' (ENNReal.mul_le_add_sq (c i) (c j)) le_rfl
+  have hrow : ∀ i, ∑ j, (c i ^ 2 + c j ^ 2) * B i j
+      = c i ^ 2 * ∑ j, B i j + ∑ j, c j ^ 2 * B i j := by
+    intro i
+    rw [Finset.mul_sum, ← Finset.sum_add_distrib]
+    refine Finset.sum_congr rfl fun j _ => ?_
+    rw [add_mul]
+  have hcol : ∑ i, ∑ j, c j ^ 2 * B i j = ∑ j, c j ^ 2 * ∑ i, B i j := by
+    rw [Finset.sum_comm]
+    exact sum_congr rfl fun j _ => (Finset.mul_sum _ _ _).symm
+  have hcolM : ∀ j, ∑ i, B i j ≤ M := fun j => by
+    have h : ∑ i, B i j = ∑ i, B j i := sum_congr rfl fun i _ => hsym i j
+    rw [h]; exact hM j
+  have step2 : ∑ i, ∑ j, (c i ^ 2 + c j ^ 2) * B i j ≤ 2 * M * ∑ i, c i ^ 2 := by
+    rw [show ∑ i, ∑ j, (c i ^ 2 + c j ^ 2) * B i j
+        = (∑ i, c i ^ 2 * ∑ j, B i j) + ∑ j, c j ^ 2 * ∑ i, B i j by
+      simp_rw [hrow]; rw [sum_add_distrib, hcol]]
+    have hb1 : ∑ i, c i ^ 2 * ∑ j, B i j ≤ M * ∑ i, c i ^ 2 :=
+      calc ∑ i, c i ^ 2 * ∑ j, B i j ≤ ∑ i, c i ^ 2 * M :=
+            sum_le_sum fun i _ => mul_le_mul' le_rfl (hM i)
+        _ = (∑ i, c i ^ 2) * M := (Finset.sum_mul _ _ _).symm
+        _ = M * ∑ i, c i ^ 2 := mul_comm _ _
+    have hb2 : ∑ j, c j ^ 2 * ∑ i, B i j ≤ M * ∑ i, c i ^ 2 :=
+      calc ∑ j, c j ^ 2 * ∑ i, B i j ≤ ∑ j, c j ^ 2 * M :=
+            sum_le_sum fun j _ => mul_le_mul' le_rfl (hcolM j)
+        _ = (∑ j, c j ^ 2) * M := (Finset.sum_mul _ _ _).symm
+        _ = M * ∑ i, c i ^ 2 := mul_comm _ _
+    calc (∑ i, c i ^ 2 * ∑ j, B i j) + ∑ j, c j ^ 2 * ∑ i, B i j
+        ≤ M * (∑ i, c i ^ 2) + M * (∑ i, c i ^ 2) := add_le_add hb1 hb2
+      _ = 2 * M * ∑ i, c i ^ 2 := by ring
+  exact step1.trans step2
+
+
+/-- **Operator bound (measure-theoretic core).**  If `M` bounds the row sums of the pairwise
+intersections of a finite family of measurable sets, then the second moment of the masses
+`μ (Tᵢ ∩ S)` is at most `2 M · μ S`. -/
+theorem operator_bound_general {ι : Type*} [Fintype ι] {α : Type*} [MeasurableSpace α]
+    (μ : Measure α) (T : ι → Set α) (hT : ∀ i, MeasurableSet (T i)) (S : Set α)
+    (hS : MeasurableSet S) (M : ℝ≥0∞) (hM : ∀ i, ∑ j, μ (T i ∩ T j) ≤ M) :
+    ∑ i, (μ (T i ∩ S)) ^ 2 ≤ 2 * M * μ S := by
+  classical
+  set w : ι → ℝ≥0∞ := fun i => μ (T i ∩ S) with hw
+  set F : α → ℝ≥0∞ := ∑ i, (fun x => w i * (T i).indicator (fun _ => (1 : ℝ≥0∞)) x) with hF
+  have hF_meas : AEMeasurable F μ := by
+    rw [hF]
+    exact Finset.aemeasurable_sum _ (fun i _ =>
+      (measurable_const.mul (measurable_const.indicator (hT i))).aemeasurable)
+  -- the pairing identity
+  have hSint : ∫⁻ x in S, F x ∂μ = ∑ i, w i ^ 2 := by
+    have hpt : ∀ x, S.indicator F x
+        = ∑ i, (fun y => w i * ((T i ∩ S).indicator (fun _ => (1 : ℝ≥0∞)) y)) x := by
+      intro x
+      by_cases hx : x ∈ S
+      · rw [Set.indicator_of_mem hx, hF]
+        simp only [Finset.sum_apply]
+        refine Finset.sum_congr rfl fun i _ => ?_
+        by_cases hy : x ∈ T i
+        · rw [Set.indicator_of_mem hy,
+            Set.indicator_of_mem (show x ∈ T i ∩ S from ⟨hy, hx⟩), mul_one]
+        · rw [Set.indicator_of_notMem hy,
+            Set.indicator_of_notMem (show x ∉ T i ∩ S from fun h => hy h.1), mul_zero]
+      · rw [Set.indicator_of_notMem hx]
+        have hz : ∀ i, (T i ∩ S).indicator (fun _ => (1 : ℝ≥0∞)) x = 0 := fun i =>
+          Set.indicator_of_notMem (s := T i ∩ S) (f := fun _ => (1 : ℝ≥0∞))
+            (show x ∉ T i ∩ S from fun h => hx h.2)
+        simp [hz]
+    calc ∫⁻ x in S, F x ∂μ
+        = ∫⁻ x, S.indicator F x ∂μ := (lintegral_indicator hS F).symm
+      _ = ∑ i, ∫⁻ x, (fun y => w i *
+            ((T i ∩ S).indicator (fun _ => (1 : ℝ≥0∞)) y)) x ∂μ := by
+            rw [lintegral_congr_ae (Filter.Eventually.of_forall hpt), lintegral_finsetSum]
+            exact fun i _ => measurable_const.mul
+              (measurable_const.indicator (hT i |>.inter hS))
+      _ = ∑ i, w i ^ 2 := by
+            refine Finset.sum_congr rfl fun i _ => ?_
+            simp only []
+            rw [lintegral_const_mul (w i) (measurable_const.indicator (hT i |>.inter hS)),
+              lintegral_indicator (hT i |>.inter hS), setLIntegral_one]
+            ring
+  -- the square
+  have hFsq : ∫⁻ x, (F x) ^ (2 : ℝ) ∂μ
+      = ∑ i, ∑ j, w i * w j * μ (T i ∩ T j) := by
+    have hpt : ∀ x, (F x) ^ (2 : ℝ) = ∑ i, ∑ j, w i * w j *
+        (T i ∩ T j).indicator (fun _ => (1 : ℝ≥0∞)) x := by
+      intro x
+      rw [hF]
+      simp only [Finset.sum_apply]
+      rw [ENNReal.rpow_two, pow_two, Finset.sum_mul_sum]
+      refine Finset.sum_congr rfl fun i _ => Finset.sum_congr rfl fun j _ => ?_
+      by_cases h1 : x ∈ T i <;> by_cases h2 : x ∈ T j <;>
+        simp [Set.indicator_of_mem, Set.indicator_of_notMem, Set.mem_inter_iff, h1, h2]
+    calc ∫⁻ x, (F x) ^ (2 : ℝ) ∂μ
+        = ∑ i, ∫⁻ x, ∑ j, w i * w j *
+            (T i ∩ T j).indicator (fun _ => (1 : ℝ≥0∞)) x ∂μ := by
+            rw [lintegral_congr_ae (Filter.Eventually.of_forall hpt), lintegral_finsetSum]
+            exact fun i _ => Finset.measurable_sum _ (fun j _ =>
+              measurable_const.mul (measurable_const.indicator (hT i |>.inter (hT j))))
+      _ = ∑ i, ∑ j, ∫⁻ x, w i * w j *
+            (T i ∩ T j).indicator (fun _ => (1 : ℝ≥0∞)) x ∂μ := by
+            refine Finset.sum_congr rfl fun i _ => ?_
+            rw [lintegral_finsetSum]
+            exact fun j _ => measurable_const.mul
+              (measurable_const.indicator (hT i |>.inter (hT j)))
+      _ = ∑ i, ∑ j, w i * w j * μ (T i ∩ T j) := by
+            refine Finset.sum_congr rfl fun i _ => Finset.sum_congr rfl fun j _ => ?_
+            rw [lintegral_const_mul (w i * w j)
+              (measurable_const.indicator (hT i |>.inter (hT j))),
+              lintegral_indicator (hT i |>.inter (hT j)), setLIntegral_one]
+  have hχ : ∫⁻ x, (S.indicator (fun _ => (1 : ℝ≥0∞)) x) ^ (2 : ℝ) ∂μ = μ S := by
+    have hpt : ∀ x, (S.indicator (fun _ => (1 : ℝ≥0∞)) x) ^ (2 : ℝ)
+        = S.indicator (fun _ => (1 : ℝ≥0∞)) x := by
+      intro x
+      by_cases hx : x ∈ S
+      · rw [Set.indicator_of_mem hx, ENNReal.one_rpow]
+      · rw [Set.indicator_of_notMem hx,
+          ENNReal.zero_rpow_of_pos (by norm_num : (0 : ℝ) < 2)]
+    rw [lintegral_congr_ae (Filter.Eventually.of_forall hpt),
+      lintegral_indicator hS, setLIntegral_one]
+  have hmul : ∫⁻ x, F x * S.indicator (fun _ => (1 : ℝ≥0∞)) x ∂μ = ∫⁻ x in S, F x ∂μ := by
+    rw [← lintegral_indicator hS]
+    refine lintegral_congr_ae (Filter.Eventually.of_forall fun x => ?_)
+    simp only []
+    by_cases hx : x ∈ S
+    · rw [Set.indicator_of_mem hx (f := fun _ => (1 : ℝ≥0∞)),
+        Set.indicator_of_mem hx (f := F), mul_one]
+    · rw [Set.indicator_of_notMem hx (f := fun _ => (1 : ℝ≥0∞)),
+        Set.indicator_of_notMem hx (f := F), mul_zero]
+  have hschur : ∑ i, ∑ j, w i * w j * μ (T i ∩ T j) ≤ 2 * M * ∑ i, w i ^ 2 :=
+    schur_test_ennreal (fun i j => by rw [inter_comm]) hM w
+  have hpq : (2 : ℝ).HolderConjugate 2 := Real.holderConjugate_iff.mpr ⟨by norm_num, by norm_num⟩
+  have hSmeas : AEMeasurable (S.indicator (fun _ => (1 : ℝ≥0∞))) μ :=
+    (measurable_const.indicator hS).aemeasurable
+  have hholder := ENNReal.lintegral_mul_le_Lp_mul_Lq μ hpq hF_meas hSmeas
+  simp only [Pi.mul_apply] at hholder
+  rw [hmul, hSint, hFsq, hχ] at hholder
+  have hstep : ∑ i, w i ^ 2 ≤ (2 * M * ∑ i, w i ^ 2) ^ (1 / 2 : ℝ) * (μ S) ^ (1 / 2 : ℝ) := by
+    refine hholder.trans ?_
+    gcongr
+  have hsq : (∑ i, w i ^ 2) ^ (2 : ℝ) ≤ (2 * M * ∑ i, w i ^ 2) * μ S := by
+    calc (∑ i, w i ^ 2) ^ (2 : ℝ)
+        ≤ ((2 * M * ∑ i, w i ^ 2) ^ (1 / 2 : ℝ) * (μ S) ^ (1 / 2 : ℝ)) ^ (2 : ℝ) :=
+            ENNReal.rpow_le_rpow hstep (by norm_num)
+      _ = (2 * M * ∑ i, w i ^ 2) * μ S := rpow_half_mul_self _ _
+  rw [ENNReal.rpow_two, pow_two] at hsq
+  have hcomm : (2 * M * ∑ i, w i ^ 2) * μ S = (∑ i, w i ^ 2) * (2 * M * μ S) := by ring
+  rw [hcomm] at hsq
+  by_cases hMtop : M = ⊤
+  · rw [hMtop]
+    by_cases hS0 : μ S = 0
+    · have hzw : ∀ i, μ (T i ∩ S) = 0 := fun i =>
+        le_antisymm ((measure_mono inter_subset_right).trans (le_of_eq hS0)) bot_le
+      rw [show ∑ i, (μ (T i ∩ S)) ^ 2 = 0 by simp [hzw]]
+      exact bot_le
+    · rw [ENNReal.mul_top (show (2 : ℝ≥0∞) ≠ 0 by norm_num), ENNReal.top_mul hS0]
+      exact le_top
+  · have hwle : ∀ i, w i ≤ M := fun i =>
+      calc w i = μ (T i ∩ S) := rfl
+        _ ≤ μ (T i) := measure_mono inter_subset_left
+        _ = μ (T i ∩ T i) := by rw [Set.inter_self]
+        _ ≤ ∑ j, μ (T i ∩ T j) :=
+            Finset.single_le_sum (f := fun j => μ (T i ∩ T j)) (fun j _ => bot_le)
+              (Finset.mem_univ i)
+        _ ≤ M := hM i
+    have htop : ∑ i, w i ^ 2 ≠ ⊤ := by
+      rw [ENNReal.sum_ne_top]
+      intro i _
+      exact ENNReal.pow_ne_top fun hwi => hMtop (top_le_iff.mp (hwi ▸ hwle i))
+    rcases eq_or_ne (∑ i, w i ^ 2) 0 with h0 | h0
+    · have hz : ∑ i, (μ (T i ∩ S)) ^ 2 = 0 := by simpa only [hw] using h0
+      rw [hz]
+      exact bot_le
+    · have h := (ENNReal.mul_le_mul_iff_right h0 htop).mp hsq
+      simpa only [hw] using h
+
+/-- **Kakeya operator bound.**  For the `N` equally spaced directions `πi/N` and tubes of width
+`2h`, the second moment of the tube masses of `χ_S` is at most
+`2·(2h + 20h²N(1 + log N))·|S|`. -/
+theorem operator_bound {N : ℕ} (hN : 0 < N) {h : ℝ} (hh : 0 < h)
+    (a : Fin N → Fin 2 → ℝ) (S : Set (Fin 2 → ℝ)) (hS : MeasurableSet S) :
+    ∑ i : Fin N, (volume (tube h (Real.pi * (i : ℝ) / N) (a i) ∩ S)) ^ 2
+      ≤ ENNReal.ofReal (2 * (2 * h + 20 * h ^ 2 * N * (1 + Real.log N))) * volume S := by
+  classical
+  set R : ℝ := 2 * h + 20 * h ^ 2 * N * (1 + Real.log N) with hR
+  have hfin : ∀ i j : Fin N,
+      volume (tube h (Real.pi * (i : ℝ) / N) (a i)
+        ∩ tube h (Real.pi * (j : ℝ) / N) (a j)) ≠ ⊤ := by
+    intro i j
+    have hle : volume (tube h (Real.pi * (i : ℝ) / N) (a i)
+        ∩ tube h (Real.pi * (j : ℝ) / N) (a j))
+        ≤ ENNReal.ofReal (2 * h) := by
+      calc volume (tube h (Real.pi * (i : ℝ) / N) (a i)
+            ∩ tube h (Real.pi * (j : ℝ) / N) (a j))
+          ≤ volume (tube h (Real.pi * (i : ℝ) / N) (a i)) := measure_mono inter_subset_left
+        _ = ENNReal.ofReal (2 * h) := volume_tube h _ (a i)
+    exact ne_top_of_le_ne_top ENNReal.ofReal_ne_top hle
+  have hM : ∀ i : Fin N,
+      ∑ j : Fin N, volume (tube h (Real.pi * (i : ℝ) / N) (a i)
+        ∩ tube h (Real.pi * (j : ℝ) / N) (a j)) ≤ ENNReal.ofReal R := by
+    intro i
+    have hsum : ∑ j : Fin N, volume (tube h (Real.pi * (i : ℝ) / N) (a i)
+          ∩ tube h (Real.pi * (j : ℝ) / N) (a j))
+        = ENNReal.ofReal (∑ j : Fin N, (volume (tube h (Real.pi * (i : ℝ) / N) (a i)
+          ∩ tube h (Real.pi * (j : ℝ) / N) (a j))).toReal) := by
+      rw [ENNReal.ofReal_sum_of_nonneg (fun j _ => ENNReal.toReal_nonneg)]
+      exact Finset.sum_congr rfl fun j _ => (ENNReal.ofReal_toReal (hfin i j)).symm
+    rw [hsum, hR]
+    exact ENNReal.ofReal_le_ofReal (row_sum_le hN hh a i)
+  have hmain := operator_bound_general volume
+    (fun i : Fin N => tube h (Real.pi * (i : ℝ) / N) (a i))
+    (fun i => measurableSet_tube _ _ _) S hS (ENNReal.ofReal R) hM
+  refine hmain.trans (le_of_eq ?_)
+  rw [show (2 : ℝ≥0∞) = ENNReal.ofReal 2 by norm_num,
+    ← ENNReal.ofReal_mul (by norm_num : (0 : ℝ) ≤ 2)]
+
+end Kakeya

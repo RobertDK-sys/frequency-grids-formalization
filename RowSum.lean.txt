@@ -1,0 +1,362 @@
+/-
+Kakeya/RowSum.lean
+
+The row-sum bound for the tube matrix: for the `N` equally spaced directions `πi/N`, the total
+length of the intersections of a fixed tube with all the others is `≲ h²N(1+log N)`.
+This is the input to the Schur bound for the Kakeya operator.
+-/
+import Mathlib
+import Kakeya.Tube
+import Kakeya.Angle
+
+open scoped MeasureTheory ENNReal NNReal Topology
+open MeasureTheory Set Topology
+
+namespace Kakeya
+
+/-- Pointwise tube intersection, measured in terms of the *ordinary* index distance. -/
+lemma tube_inter_toReal_le {N : ℕ} (hN : 0 < N) {h : ℝ} (hh : 0 < h)
+    {i j : Fin N} (hij : i ≠ j) (a b : Fin 2 → ℝ) :
+    (volume (tube h (Real.pi * (i : ℝ) / N) a ∩ tube h (Real.pi * (j : ℝ) / N) b)).toReal
+      ≤ 4 * h ^ 2 * N * (1 / |(j : ℝ) - (i : ℝ)| + 1 / ((N : ℝ) - |(j : ℝ) - (i : ℝ)|)) := by
+  have hN' : (0 : ℝ) < (N : ℝ) := by exact_mod_cast hN
+  have hh2 : (0 : ℝ) < h ^ 2 := pow_pos hh 2
+  set m : ℝ := (j : ℝ) - (i : ℝ) with hm
+  have hsub : Real.pi * (j : ℝ) / N - Real.pi * (i : ℝ) / N = Real.pi * m / N := by
+    rw [hm]; ring
+  have hsin_ne : Real.sin (Real.pi * m / N) ≠ 0 := by
+    rw [hm]; exact sin_pi_div_fin_ne hN hij
+  have habs_sin_pos : 0 < |Real.sin (Real.pi * m / N)| := abs_pos.mpr hsin_ne
+  have hi1 : (i : ℝ) < N := by exact_mod_cast i.isLt
+  have hj1 : (j : ℝ) < N := by exact_mod_cast j.isLt
+  have hi0 : (0 : ℝ) ≤ (i : ℝ) := Nat.cast_nonneg _
+  have hj0 : (0 : ℝ) ≤ (j : ℝ) := Nat.cast_nonneg _
+  have hm0 : m ≠ 0 := by
+    intro hc
+    apply hij
+    have : (j : ℝ) = (i : ℝ) := by rw [hm] at hc; linarith
+    exact Fin.ext (by exact_mod_cast this.symm)
+  have habsm_pos : 0 < |m| := abs_pos.mpr hm0
+  have hi2 : (i : ℝ) ≤ (N : ℝ) - 1 := by
+    have hnat : (i : ℕ) + 1 ≤ N := i.isLt
+    have : ((i : ℕ) : ℝ) + 1 ≤ (N : ℝ) := by exact_mod_cast hnat
+    linarith
+  have hj2 : (j : ℝ) ≤ (N : ℝ) - 1 := by
+    have hnat : (j : ℕ) + 1 ≤ N := j.isLt
+    have : ((j : ℕ) : ℝ) + 1 ≤ (N : ℝ) := by exact_mod_cast hnat
+    linarith
+  have hmN : |m| ≤ N := by rw [hm, abs_le]; constructor <;> linarith
+  have hmN1 : |m| ≤ (N : ℝ) - 1 := by rw [hm, abs_le]; constructor <;> linarith
+  have hNm_pos : 0 < (N : ℝ) - |m| := by linarith
+  have hmin_pos : 0 < min |m| ((N : ℝ) - |m|) := lt_min habsm_pos hNm_pos
+  -- the tube bound
+  have hmain := volume_tube_inter_le (h := h) (θ := Real.pi * (i : ℝ) / N)
+    (φ := Real.pi * (j : ℝ) / N) a b (by rw [hsub]; exact hsin_ne) hh.le
+  rw [hsub] at hmain
+  -- arithmetic
+  have hX1 : 2 * ((h + |Real.cos (Real.pi * m / N)| * h) / |Real.sin (Real.pi * m / N)|) * (2 * h)
+      ≤ 8 * h ^ 2 / |Real.sin (Real.pi * m / N)| := by
+    have hc : |Real.cos (Real.pi * m / N)| ≤ 1 := Real.abs_cos_le_one _
+    have heq : 2 * ((h + |Real.cos (Real.pi * m / N)| * h) / |Real.sin (Real.pi * m / N)|) * (2 * h)
+        = 4 * h ^ 2 * (1 + |Real.cos (Real.pi * m / N)|)
+            / |Real.sin (Real.pi * m / N)| := by
+      field_simp
+      ring
+    have hle : 4 * h ^ 2 * (1 + |Real.cos (Real.pi * m / N)|) ≤ 8 * h ^ 2 := by
+      nlinarith [hc, hh.le, sq_nonneg h]
+    rw [heq, div_le_div_iff₀ habs_sin_pos habs_sin_pos]
+    exact mul_le_mul_of_nonneg_right hle habs_sin_pos.le
+  have hsin_ge := sin_abs_lower hN (m := m) hmN
+  rw [div_le_iff₀ hN'] at hsin_ge
+  have hX2 : 8 * h ^ 2 / |Real.sin (Real.pi * m / N)|
+      ≤ 4 * h ^ 2 * N / min |m| ((N : ℝ) - |m|) := by
+    rw [div_le_div_iff₀ habs_sin_pos hmin_pos]
+    nlinarith [hsin_ge, hmin_pos, hh2, hN']
+  have hX3 : 4 * h ^ 2 * N / min |m| ((N : ℝ) - |m|)
+      ≤ 4 * h ^ 2 * N * (1 / |m| + 1 / ((N : ℝ) - |m|)) := by
+    have hinv := inv_min_le |m| ((N : ℝ) - |m|) habsm_pos hNm_pos
+    have := mul_le_mul_of_nonneg_left hinv (by positivity : (0 : ℝ) ≤ 4 * h ^ 2 * N)
+    calc 4 * h ^ 2 * N / min |m| ((N : ℝ) - |m|)
+        = 4 * h ^ 2 * N * (min |m| ((N : ℝ) - |m|))⁻¹ := by rw [div_eq_mul_inv]
+      _ ≤ 4 * h ^ 2 * N * (1 / |m| + 1 / ((N : ℝ) - |m|)) := by
+          refine mul_le_mul_of_nonneg_left ?_ (by positivity)
+          simpa [one_div] using hinv
+  have hY : 0 ≤ 4 * h ^ 2 * N * (1 / |m| + 1 / ((N : ℝ) - |m|)) := by positivity
+  have hfin : volume (tube h (Real.pi * (i : ℝ) / N) a ∩ tube h (Real.pi * (j : ℝ) / N) b)
+      ≤ ENNReal.ofReal (4 * h ^ 2 * N * (1 / |m| + 1 / ((N : ℝ) - |m|))) := by
+    refine hmain.trans ?_
+    rw [ENNReal.ofReal_le_ofReal_iff hY]
+    exact le_trans hX1 (le_trans hX2 hX3)
+  calc (volume (tube h (Real.pi * (i : ℝ) / N) a ∩ tube h (Real.pi * (j : ℝ) / N) b)).toReal
+      ≤ (ENNReal.ofReal (4 * h ^ 2 * N * (1 / |m| + 1 / ((N : ℝ) - |m|)))).toReal :=
+        (ENNReal.toReal_le_toReal (ne_top_of_le_ne_top ENNReal.ofReal_ne_top hfin)
+          ENNReal.ofReal_ne_top).mpr hfin
+    _ = 4 * h ^ 2 * N * (1 / |m| + 1 / ((N : ℝ) - |m|)) := ENNReal.toReal_ofReal hY
+    _ = 4 * h ^ 2 * N * (1 / |(j : ℝ) - (i : ℝ)| + 1 / ((N : ℝ) - |(j : ℝ) - (i : ℝ)|)) := by
+        rw [hm]
+
+
+/-- The harmonic sum, written in the form convenient for the reindexings below. -/
+noncomputable def Hsum (N : ℕ) : ℝ := ∑ k ∈ Finset.range N, (((k + 1 : ℕ)) : ℝ)⁻¹
+
+lemma Hsum_eq_harmonic (N : ℕ) : Hsum N = (harmonic N : ℝ) := by
+  simp [Hsum, harmonic, Rat.cast_sum, Rat.cast_inv]
+
+lemma Hsum_le (N : ℕ) : Hsum N ≤ 1 + Real.log N := by
+  rw [Hsum_eq_harmonic]; exact harmonic_le_one_add_log N
+
+lemma Hsum_sub_le (i N : ℕ) : Hsum (N - 1 - i) ≤ Hsum N := by
+  rw [Hsum, Hsum]
+  refine Finset.sum_le_sum_of_subset_of_nonneg ?_ ?_
+  · intro k hk; simp only [Finset.mem_range] at hk ⊢; omega
+  · intro k _ _; positivity
+
+/-- `Hsum` as a sum over `Icc 1 N`. -/
+lemma Hsum_eq_Icc (N : ℕ) : Hsum N = ∑ k ∈ Finset.Icc 1 N, (k : ℝ)⁻¹ := by
+  rw [Hsum]
+  have hinj : Set.InjOn (fun k : ℕ => k + 1) ↑(Finset.range N) := by
+    intro a _ b _ hab
+    simp only at hab
+    omega
+  rw [← Finset.sum_image (f := fun m : ℕ => (m : ℝ)⁻¹) (g := fun k => k + 1)
+    (s := Finset.range N) hinj]
+  congr 1
+  ext m
+  simp only [Finset.mem_image, Finset.mem_range, Finset.mem_Icc]
+  constructor
+  · rintro ⟨k, hk, rfl⟩; omega
+  · intro hm; exact ⟨m - 1, by omega, by omega⟩
+
+/-- A general reindexing: the "left half" of a distance sum is dominated by `∑_{k ∈ Icc 1 N}`. -/
+lemma sum_range_f_sub_le {i N : ℕ} (hiN : i ≤ N) (f : ℕ → ℝ)
+    (hf : ∀ k ∈ Finset.Icc 1 N, 0 ≤ f k) :
+    ∑ j ∈ Finset.range i, f (i - j) ≤ ∑ k ∈ Finset.Icc 1 N, f k := by
+  have hinj : Set.InjOn (fun j : ℕ => i - j) ↑(Finset.range i) := by
+    intro a ha b hb hab
+    simp only [Finset.mem_coe, Finset.mem_range] at ha hb
+    simp only at hab
+    omega
+  have hsub : (Finset.range i).image (fun j : ℕ => i - j) ⊆ Finset.Icc 1 N := by
+    intro k hk
+    simp only [Finset.mem_image, Finset.mem_range] at hk
+    obtain ⟨j, hj, rfl⟩ := hk
+    simp only [Finset.mem_Icc]
+    omega
+  calc ∑ j ∈ Finset.range i, f (i - j)
+      = ∑ k ∈ (Finset.range i).image (fun j : ℕ => i - j), f k :=
+        (Finset.sum_image (f := f) (g := fun j : ℕ => i - j) (s := Finset.range i) hinj).symm
+    _ ≤ ∑ k ∈ Finset.Icc 1 N, f k :=
+        Finset.sum_le_sum_of_subset_of_nonneg hsub (fun k hk _ => hf k hk)
+
+/-- A general reindexing: the "right half" of a distance sum is dominated by `∑_{k ∈ Icc 1 N}`. -/
+lemma sum_Ico_f_sub_le (i N : ℕ) (f : ℕ → ℝ)
+    (hf : ∀ k ∈ Finset.Icc 1 N, 0 ≤ f k) :
+    ∑ j ∈ Finset.Ico (i + 1) N, f (j - i) ≤ ∑ k ∈ Finset.Icc 1 N, f k := by
+  have hinj : Set.InjOn (fun j : ℕ => j - i) ↑(Finset.Ico (i + 1) N) := by
+    intro a ha b hb hab
+    simp only [Finset.mem_coe, Finset.mem_Ico] at ha hb
+    simp only at hab
+    omega
+  have hsub : (Finset.Ico (i + 1) N).image (fun j : ℕ => j - i) ⊆ Finset.Icc 1 N := by
+    intro k hk
+    simp only [Finset.mem_image, Finset.mem_Ico] at hk
+    obtain ⟨j, hj, rfl⟩ := hk
+    simp only [Finset.mem_Icc]
+    omega
+  calc ∑ j ∈ Finset.Ico (i + 1) N, f (j - i)
+      = ∑ k ∈ (Finset.Ico (i + 1) N).image (fun j : ℕ => j - i), f k :=
+        (Finset.sum_image (f := f) (g := fun j : ℕ => j - i) (s := Finset.Ico (i + 1) N)
+          hinj).symm
+    _ ≤ ∑ k ∈ Finset.Icc 1 N, f k :=
+        Finset.sum_le_sum_of_subset_of_nonneg hsub (fun k hk _ => hf k hk)
+
+/-- The `ℕ`-distance, cast to `ℝ`, is the absolute value of the difference. -/
+lemma natCast_dist (j i : ℕ) : ((Nat.dist j i : ℕ) : ℝ) = |(j : ℝ) - (i : ℝ)| := by
+  rcases le_total j i with h | h
+  · have hR : (j : ℝ) ≤ (i : ℝ) := by exact_mod_cast h
+    rw [Nat.dist_eq_sub_of_le h, Nat.cast_sub h, abs_of_nonpos (sub_nonpos.mpr hR), neg_sub]
+  · have hR : (i : ℝ) ≤ (j : ℝ) := by exact_mod_cast h
+    rw [Nat.dist_comm, Nat.dist_eq_sub_of_le h, Nat.cast_sub h,
+      abs_of_nonneg (sub_nonneg.mpr hR)]
+
+/-- `∑_{k ∈ Icc 1 N} 1/(N - k) ≤ ∑_{k ∈ Icc 1 N} 1/k`. -/
+lemma sum_Icc_sub_le (N : ℕ) :
+    ∑ k ∈ Finset.Icc 1 N, ((N : ℝ) - (k : ℝ))⁻¹ ≤ ∑ k ∈ Finset.Icc 1 N, (k : ℝ)⁻¹ := by
+  have hinj : Set.InjOn (fun k : ℕ => N - k) ↑(Finset.Icc 1 N) := by
+    intro a ha b hb hab
+    simp only [Finset.mem_coe, Finset.mem_Icc] at ha hb
+    simp only at hab
+    omega
+  calc ∑ k ∈ Finset.Icc 1 N, ((N : ℝ) - (k : ℝ))⁻¹
+      = ∑ k ∈ Finset.Icc 1 N, (fun m : ℕ => (m : ℝ)⁻¹) (N - k) := by
+        refine Finset.sum_congr rfl fun k hk => ?_
+        simp only [Finset.mem_Icc] at hk
+        simp only []
+        rw [Nat.cast_sub hk.2]
+    _ = ∑ m ∈ (Finset.Icc 1 N).image (fun k : ℕ => N - k), (m : ℝ)⁻¹ :=
+        (Finset.sum_image (f := fun m : ℕ => (m : ℝ)⁻¹) (g := fun k : ℕ => N - k)
+          (s := Finset.Icc 1 N) hinj).symm
+    _ ≤ ∑ m ∈ Finset.Icc 0 N, (m : ℝ)⁻¹ := by
+        refine Finset.sum_le_sum_of_subset_of_nonneg ?_ (fun m _ _ => by positivity)
+        intro m hm
+        simp only [Finset.mem_image, Finset.mem_Icc] at hm
+        obtain ⟨k, hk, rfl⟩ := hm
+        simp only [Finset.mem_Icc]
+        omega
+    _ = ∑ m ∈ Finset.Icc 1 N, (m : ℝ)⁻¹ := by
+        have : Finset.Icc 0 N = insert 0 (Finset.Icc 1 N) := by
+          ext m; simp only [Finset.mem_Icc, Finset.mem_insert]; omega
+        rw [this, Finset.sum_insert (by simp only [Finset.mem_Icc]; omega), Nat.cast_zero,
+          inv_zero, zero_add]
+
+/-- A distance sum over `Fin N` is dominated by `f 0` plus twice the harmonic sum. -/
+lemma sum_fin_dist_le {N : ℕ} (i : Fin N) (f : ℕ → ℝ)
+    (hf : ∀ k ∈ Finset.Icc 1 N, 0 ≤ f k) :
+    ∑ j : Fin N, f (Nat.dist (j : ℕ) (i : ℕ)) ≤ f 0 + 2 * ∑ k ∈ Finset.Icc 1 N, f k := by
+  rw [Fin.sum_univ_eq_sum_range (fun j => f (Nat.dist j (i : ℕ))) N]
+  have hsplit : Finset.range N =
+      insert (i : ℕ) (Finset.range (i : ℕ) ∪ Finset.Ico ((i : ℕ) + 1) N) := by
+    ext k; simp only [Finset.mem_range, Finset.mem_union, Finset.mem_Ico, Finset.mem_insert]
+    omega
+  have hni : (i : ℕ) ∉ Finset.range (i : ℕ) ∪ Finset.Ico ((i : ℕ) + 1) N := by
+    simp only [Finset.mem_union, Finset.mem_range, Finset.mem_Ico]; omega
+  have hdisj : Disjoint (Finset.range (i : ℕ)) (Finset.Ico ((i : ℕ) + 1) N) := by
+    rw [Finset.disjoint_left]
+    intro k hk1 hk2
+    simp only [Finset.mem_range] at hk1
+    simp only [Finset.mem_Ico] at hk2
+    omega
+  rw [hsplit, Finset.sum_insert hni, Finset.sum_union hdisj, Nat.dist_self]
+  have hleft : ∑ j ∈ Finset.range (i : ℕ), f (Nat.dist j (i : ℕ)) ≤ ∑ k ∈ Finset.Icc 1 N, f k := by
+    have he : ∑ j ∈ Finset.range (i : ℕ), f (Nat.dist j (i : ℕ))
+        = ∑ j ∈ Finset.range (i : ℕ), f ((i : ℕ) - j) := by
+      refine Finset.sum_congr rfl fun j hj => ?_
+      simp only [Finset.mem_range] at hj
+      rw [Nat.dist_eq_sub_of_le (le_of_lt hj)]
+    rw [he]
+    exact sum_range_f_sub_le i.isLt.le f hf
+  have hright : ∑ j ∈ Finset.Ico ((i : ℕ) + 1) N, f (Nat.dist j (i : ℕ))
+      ≤ ∑ k ∈ Finset.Icc 1 N, f k := by
+    have he : ∑ j ∈ Finset.Ico ((i : ℕ) + 1) N, f (Nat.dist j (i : ℕ))
+        = ∑ j ∈ Finset.Ico ((i : ℕ) + 1) N, f (j - (i : ℕ)) := by
+      refine Finset.sum_congr rfl fun j hj => ?_
+      simp only [Finset.mem_Ico] at hj
+      rw [Nat.dist_comm, Nat.dist_eq_sub_of_le (le_of_lt hj.1)]
+    rw [he]
+    exact sum_Ico_f_sub_le (i : ℕ) N f hf
+  linarith
+
+/-- `∑_{j : Fin N} 1/|j - i| ≤ 2 ∑_{k ∈ Icc 1 N} 1/k`. -/
+lemma sum_inv_abs_sub_le {N : ℕ} (i : Fin N) :
+    ∑ j : Fin N, (|(j : ℝ) - (i : ℝ)|)⁻¹ ≤ 2 * ∑ k ∈ Finset.Icc 1 N, (k : ℝ)⁻¹ := by
+  have h := sum_fin_dist_le i (fun k : ℕ => (k : ℝ)⁻¹) (fun k _ => by positivity)
+  simp only [Nat.cast_zero, inv_zero, zero_add] at h
+  refine le_trans (le_of_eq ?_) h
+  refine Finset.sum_congr rfl fun j _ => ?_
+  rw [natCast_dist]
+
+/-- `∑_{j : Fin N} 1/(N - |j - i|) ≤ 3 ∑_{k ∈ Icc 1 N} 1/k`. -/
+lemma sum_inv_sub_abs_sub_le {N : ℕ} (i : Fin N) :
+    ∑ j : Fin N, (((N : ℝ) - |(j : ℝ) - (i : ℝ)|))⁻¹
+      ≤ 3 * ∑ k ∈ Finset.Icc 1 N, (k : ℝ)⁻¹ := by
+  have hsub : ∀ k ∈ Finset.Icc 1 N, (0 : ℝ) ≤ ((N : ℝ) - (k : ℝ))⁻¹ := by
+    intro k hk
+    simp only [Finset.mem_Icc] at hk
+    have h2 : (k : ℝ) ≤ N := by exact_mod_cast hk.2
+    exact inv_nonneg.mpr (by linarith)
+  have h := sum_fin_dist_le i (fun k : ℕ => ((N : ℝ) - (k : ℝ))⁻¹) hsub
+  have heq : ∑ j : Fin N, (((N : ℝ) - |(j : ℝ) - (i : ℝ)|))⁻¹
+      = ∑ j : Fin N, (fun k : ℕ => ((N : ℝ) - (k : ℝ))⁻¹) (Nat.dist (j : ℕ) (i : ℕ)) := by
+    refine Finset.sum_congr rfl fun j _ => ?_
+    simp only []
+    rw [natCast_dist]
+  rw [heq]
+  have hN : ((N : ℝ) - ((0 : ℕ) : ℝ))⁻¹ ≤ ∑ k ∈ Finset.Icc 1 N, (k : ℝ)⁻¹ := by
+    have : ((N : ℝ) - ((0 : ℕ) : ℝ))⁻¹ = (N : ℝ)⁻¹ := by norm_num
+    rw [this]
+    exact Finset.single_le_sum (f := fun k : ℕ => (k : ℝ)⁻¹) (fun k _ => by positivity)
+      (by have := i.isLt; simp only [Finset.mem_Icc]; omega)
+  have hS2 := sum_Icc_sub_le N
+  have hT : 0 ≤ ∑ k ∈ Finset.Icc 1 N, (k : ℝ)⁻¹ :=
+    Finset.sum_nonneg (fun k _ => by positivity)
+  linarith
+
+
+/-- **Row-sum bound.** For the `N` equally spaced directions `πi/N`, the total length of the
+intersections of a fixed tube with all the tubes in the family is at most
+`2h + 20 h²N(1 + log N)`. -/
+theorem row_sum_le {N : ℕ} (hN : 0 < N) {h : ℝ} (hh : 0 < h) (a : Fin N → Fin 2 → ℝ)
+    (i : Fin N) :
+    ∑ j : Fin N, (volume (tube h (Real.pi * (i : ℝ) / N) (a i)
+        ∩ tube h (Real.pi * (j : ℝ) / N) (a j))).toReal
+      ≤ 2 * h + 20 * h ^ 2 * N * (1 + Real.log N) := by
+  classical
+  have hN' : (0 : ℝ) < (N : ℝ) := by exact_mod_cast hN
+  set f : Fin N → ℝ := fun j => (volume (tube h (Real.pi * (i : ℝ) / N) (a i)
+      ∩ tube h (Real.pi * (j : ℝ) / N) (a j))).toReal with hf
+  set T : ℝ := ∑ k ∈ Finset.Icc 1 N, (k : ℝ)⁻¹ with hT
+  have hTnn : 0 ≤ T := Finset.sum_nonneg (fun k _ => by positivity)
+  have hdiag : f i = 2 * h := by
+    have h1 : f i = (volume (tube h (Real.pi * (i : ℝ) / N) (a i)
+        ∩ tube h (Real.pi * (i : ℝ) / N) (a i))).toReal := rfl
+    rw [h1, Set.inter_self, volume_tube, ENNReal.toReal_ofReal (by linarith)]
+  rw [← Finset.sum_erase_add _ f (Finset.mem_univ i), hdiag]
+  have hmain : ∑ j ∈ Finset.univ.erase i, f j
+      ≤ 4 * h ^ 2 * N * (∑ j ∈ Finset.univ.erase i, (1 / |(j : ℝ) - (i : ℝ)|)
+        + ∑ j ∈ Finset.univ.erase i, (1 / ((N : ℝ) - |(j : ℝ) - (i : ℝ)|))) := by
+    have hpt : ∀ j ∈ Finset.univ.erase i, f j
+        ≤ 4 * h ^ 2 * N * (1 / |(j : ℝ) - (i : ℝ)| + 1 / ((N : ℝ) - |(j : ℝ) - (i : ℝ)|)) := by
+      intro j hj
+      rw [Finset.mem_erase] at hj
+      exact tube_inter_toReal_le hN hh (fun hc => hj.1 hc.symm) (a i) (a j)
+    calc ∑ j ∈ Finset.univ.erase i, f j
+        ≤ ∑ j ∈ Finset.univ.erase i,
+            4 * h ^ 2 * N * (1 / |(j : ℝ) - (i : ℝ)| + 1 / ((N : ℝ) - |(j : ℝ) - (i : ℝ)|)) :=
+          Finset.sum_le_sum hpt
+      _ = 4 * h ^ 2 * N * (∑ j ∈ Finset.univ.erase i,
+            (1 / |(j : ℝ) - (i : ℝ)| + 1 / ((N : ℝ) - |(j : ℝ) - (i : ℝ)|))) := by
+          rw [Finset.mul_sum]
+      _ = 4 * h ^ 2 * N * (∑ j ∈ Finset.univ.erase i, (1 / |(j : ℝ) - (i : ℝ)|)
+            + ∑ j ∈ Finset.univ.erase i, (1 / ((N : ℝ) - |(j : ℝ) - (i : ℝ)|))) := by
+          rw [Finset.sum_add_distrib]
+  have h1 : ∑ j ∈ Finset.univ.erase i, (1 / |(j : ℝ) - (i : ℝ)|) ≤ 2 * T := by
+    have hsub : ∑ j ∈ Finset.univ.erase i, (1 / |(j : ℝ) - (i : ℝ)|)
+        ≤ ∑ j : Fin N, (1 / |(j : ℝ) - (i : ℝ)|) :=
+      Finset.sum_le_sum_of_subset_of_nonneg (Finset.erase_subset _ _)
+        (fun j _ _ => by positivity)
+    refine le_trans hsub ?_
+    have := sum_inv_abs_sub_le i
+    simpa [one_div, hT] using this
+  have h2 : ∑ j ∈ Finset.univ.erase i, (1 / ((N : ℝ) - |(j : ℝ) - (i : ℝ)|)) ≤ 3 * T := by
+    have hsub : ∑ j ∈ Finset.univ.erase i, (1 / ((N : ℝ) - |(j : ℝ) - (i : ℝ)|))
+        ≤ ∑ j : Fin N, (1 / ((N : ℝ) - |(j : ℝ) - (i : ℝ)|)) :=
+      Finset.sum_le_sum_of_subset_of_nonneg (Finset.erase_subset _ _) (fun j _ _ => by
+        rw [one_div]
+        refine inv_nonneg.mpr ?_
+        have hj1 : (j : ℝ) < (N : ℝ) := by exact_mod_cast j.isLt
+        have hi1 : (i : ℝ) < (N : ℝ) := by exact_mod_cast i.isLt
+        have hj0 : (0 : ℝ) ≤ (j : ℝ) := Nat.cast_nonneg _
+        have hi0 : (0 : ℝ) ≤ (i : ℝ) := Nat.cast_nonneg _
+        have habs : |(j : ℝ) - (i : ℝ)| < (N : ℝ) := by
+          rw [abs_lt]; constructor <;> linarith
+        linarith)
+    refine le_trans hsub ?_
+    have := sum_inv_sub_abs_sub_le i
+    simpa [one_div, hT] using this
+  have hTlog : T ≤ 1 + Real.log N := by
+    rw [hT, ← Hsum_eq_Icc]; exact Hsum_le N
+  have h4nn : 0 ≤ 20 * h ^ 2 * N := by nlinarith [sq_nonneg h, hN'.le]
+  have hAB : ∑ j ∈ Finset.univ.erase i, 1 / |(j : ℝ) - (i : ℝ)|
+      + ∑ j ∈ Finset.univ.erase i, 1 / ((N : ℝ) - |(j : ℝ) - (i : ℝ)|) ≤ 5 * T := by linarith
+  have hS : ∑ j ∈ Finset.univ.erase i, f j ≤ 20 * h ^ 2 * N * T := by
+    refine le_trans hmain ?_
+    calc 4 * h ^ 2 * (N : ℝ) * (∑ j ∈ Finset.univ.erase i, 1 / |((j : ℝ) - (i : ℝ))|
+            + ∑ j ∈ Finset.univ.erase i, 1 / ((N : ℝ) - |(j : ℝ) - (i : ℝ)|))
+        ≤ 4 * h ^ 2 * (N : ℝ) * (5 * T) :=
+          mul_le_mul_of_nonneg_left hAB (by nlinarith [sq_nonneg h, hN'.le])
+      _ = 20 * h ^ 2 * (N : ℝ) * T := by ring
+  have hT2 : 20 * h ^ 2 * (N : ℝ) * T ≤ 20 * h ^ 2 * (N : ℝ) * (1 + Real.log ↑N) :=
+    mul_le_mul_of_nonneg_left hTlog h4nn
+  linarith
+
+end Kakeya

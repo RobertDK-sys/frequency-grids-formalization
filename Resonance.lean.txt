@@ -1,0 +1,106 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).  Unconditional part, items 4 and 5.
+
+# The Gram kernel: off-diagonal bound, and invariance of `Re S_f(b)` under `b ↦ -b`
+
+The paper's Gram matrix is
+
+  G_ij(T) = (1/T) ∫_0^T e^{i(b_i - b_j)t} dt
+          = 1                              if i = j,
+            (e^{i(b_i-b_j)T} - 1)/(i(b_i-b_j)T)   if i ≠ j.
+
+We formalise the coefficient and prove the standard bound `|G_ij| ≤ 2/(T|b_i-b_j|)`
+(vf4, Lemma 2 of §6.5.2.2).  We then show that the partial harmonic sums
+`S_f(N,b) = Σ_{m ≤ N} m^{-(1/2+ib)}` have a real part invariant under `b ↦ -b`.
+-/
+import FrequencyGrids.Lattice
+
+namespace FrequencyGrids
+
+open Complex
+
+/-! ## The off-diagonal Gram coefficient -/
+
+/-- The Gram coefficient of the mode pair `(b₁,b₂)` at horizon `T`. -/
+noncomputable def gramCoeff (b₁ b₂ T : ℝ) : ℂ :=
+  if b₁ = b₂ then 1
+  else (Complex.exp (((b₁ - b₂) * T : ℝ) * Complex.I) - 1)
+    / (Complex.I * (((b₁ - b₂) * T : ℝ) : ℂ))
+
+theorem gramCoeff_self (b T : ℝ) : gramCoeff b b T = 1 := by
+  unfold gramCoeff; rw [if_pos rfl]
+
+/-- `‖exp(iθ) − 1‖ ≤ 2` for real `θ`. -/
+theorem norm_exp_I_sub_one_le_two (θ : ℝ) :
+    ‖Complex.exp ((θ : ℂ) * Complex.I) - 1‖ ≤ 2 := by
+  have h1 : ‖Complex.exp ((θ : ℂ) * Complex.I)‖ = 1 := Complex.norm_exp_ofReal_mul_I θ
+  have h2 : ‖(1 : ℂ)‖ = 1 := norm_one
+  calc ‖Complex.exp ((θ : ℂ) * Complex.I) - 1‖
+      ≤ ‖Complex.exp ((θ : ℂ) * Complex.I)‖ + ‖(1 : ℂ)‖ := norm_sub_le _ _
+    _ = 2 := by rw [h1, h2]; norm_num
+
+/-- **Lemma 2 of the paper.**  For distinct frequencies `b₁ ≠ b₂` and `T > 0`,
+
+  `|(e^{i(b₁-b₂)T} - 1)/(i(b₁-b₂)T)| ≤ 2/(T|b₁-b₂|)`. -/
+theorem gramCoeff_offdiag_bound (b₁ b₂ T : ℝ) (hne : b₁ ≠ b₂) (hT : 0 < T) :
+    ‖gramCoeff b₁ b₂ T‖ ≤ 2 / (T * |b₁ - b₂|) := by
+  have hsub : b₁ - b₂ ≠ 0 := sub_ne_zero.mpr hne
+  have hθ : (b₁ - b₂) * T ≠ 0 := mul_ne_zero hsub (ne_of_gt hT)
+  have hden : ‖Complex.I * (((b₁ - b₂) * T : ℝ) : ℂ)‖ = T * |b₁ - b₂| := by
+    rw [norm_mul, Complex.norm_I, one_mul, Complex.norm_real, Real.norm_eq_abs, abs_mul,
+      abs_of_pos hT, mul_comm]
+  have hpos : (0:ℝ) < T * |b₁ - b₂| := by
+    have : (0:ℝ) < |b₁ - b₂| := abs_pos.mpr hsub
+    positivity
+  have hnum : ‖Complex.exp (((b₁ - b₂) * T : ℝ) * Complex.I) - 1‖
+      ≤ 2 / (T * |b₁ - b₂|) * (T * |b₁ - b₂|) := by
+    have h := norm_exp_I_sub_one_le_two ((b₁ - b₂) * T)
+    have h2 : 2 = 2 / (T * |b₁ - b₂|) * (T * |b₁ - b₂|) := by
+      field_simp
+    rw [h2] at h
+    exact h
+  unfold gramCoeff
+  rw [if_neg hne, Complex.norm_div, hden]
+  rw [div_le_iff₀ hpos]
+  exact hnum
+
+/-! ## The partial harmonic sums and their behaviour under `b ↦ -b` -/
+
+/-- The summand `m^{-(1/2+ib)}`. -/
+noncomputable def hterm (m : ℕ) (b : ℝ) : ℂ :=
+  ((m : ℂ)) ^ (-(((1 / 2 : ℝ) : ℂ) + (b : ℂ) * Complex.I))
+
+/-- The partial harmonic sum `S_f(N,b) = Σ_{m ≤ N} m^{-(1/2+ib)}`. -/
+noncomputable def hsum (N : ℕ) (b : ℝ) : ℂ := ∑ m ∈ Finset.Icc 1 N, hterm m b
+
+theorem hterm_conj (m : ℕ) (b : ℝ) : (starRingEnd ℂ) (hterm m b) = hterm m (-b) := by
+  unfold hterm
+  have harg : ((m : ℂ)).arg ≠ Real.pi := by
+    have hm : (m : ℂ) = ((m : ℝ) : ℂ) := by push_cast; ring
+    rw [hm, Complex.arg_ofReal_of_nonneg (by positivity)]
+    exact Ne.symm Real.pi_ne_zero
+  have h := Complex.cpow_conj ((m : ℂ)) (-(((1/2 : ℝ) : ℂ) + (b:ℂ) * Complex.I)) harg
+  have hexp : (starRingEnd ℂ) (-(((1/2:ℝ):ℂ) + (b:ℂ)*Complex.I))
+      = -(((1/2:ℝ):ℂ) + ((((-b):ℝ)):ℂ)*Complex.I) := by
+    rw [map_neg, map_add, map_mul, Complex.conj_ofReal, Complex.conj_I, Complex.conj_ofReal]
+    push_cast
+    ring
+  have hx : (starRingEnd ℂ) ((m:ℂ)) = (m:ℂ) := Complex.conj_natCast m
+  rw [← hexp, ← hx, ← h, hx]
+
+theorem hsum_conj (N : ℕ) (b : ℝ) : (starRingEnd ℂ) (hsum N b) = hsum N (-b) := by
+  unfold hsum
+  simp only [map_sum, hterm_conj]
+
+/-- **`Re S_f(N, .)` is even in `b`**: the real part of the partial sums is invariant under
+`b ↦ -b`, so the frequency grid is symmetric about the origin. -/
+theorem hsum_re_even (N : ℕ) (b : ℝ) : (hsum N (-b)).re = (hsum N b).re := by
+  rw [← hsum_conj, Complex.conj_re]
+
+/-- The invariance in the form used in the paper: the real part pairs the two signs `±b`. -/
+theorem hsum_re_neg_iff (N : ℕ) (b : ℝ) (c : ℝ) :
+    (hsum N (-b)).re = c ↔ (hsum N b).re = c := by
+  rw [hsum_re_even]
+
+end FrequencyGrids

@@ -1,0 +1,219 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).
+
+# The Gram matrix of an arbitrary frequency family, and the distinct-frequency lattice
+
+`FrequencyGrids/Eigen.lean` builds the Gram matrix of the resonant modes, indexed by the mode
+triplets.  Here the same construction is carried out for an *arbitrary* finite frequency
+family `f : ι → ℝ` (`gramOf f X`), together with its evaluation matrix `E` (`evalOf`),
+factorisation `G = E Eᴴ`, positive semidefiniteness, rank bound and vanishing count.
+
+Two instances matter:
+
+* `ι = ↥(modeSet T)`, `f = modeB T` — the triplet-indexed matrix of `Eigen.lean`; the general
+  results specialise to it definitionally (`gramMatrix_eq_gramOf`).
+* `ι = ↥(freqSet T)`, `f = Subtype.val` — the matrix indexed by the **distinct** resonant
+  frequencies, whose index type has cardinality `N_R(T)` (`card_freqSet`).  In this indexing
+  the vanishing bound `N_van ≥ card ι − X` reads `N_R − X`, with no collision hypothesis: the
+  rigidity theorem for collisions is what makes the two indexings agree in substance.
+-/
+import FrequencyGrids.Eigen
+
+namespace FrequencyGrids
+
+open Complex Matrix
+
+open scoped ComplexOrder
+
+set_option maxRecDepth 8000
+set_option linter.unusedSectionVars false
+
+set_option maxHeartbeats 2000000
+
+variable {ι : Type*} [Fintype ι] [DecidableEq ι]
+
+/-! ## The general Gram matrix -/
+
+/-- The Gram matrix of the frequency family `f` at cutoff `X`:
+`G_ij(X) = Σ_{n ≤ X} n^{-1-i(f_i - f_j)}`. -/
+noncomputable def gramOf (f : ι → ℝ) (X : ℝ) : Matrix ι ι ℂ :=
+  fun i j => ∑ n ∈ Finset.Icc 1 ⌊X⌋₊,
+    (n : ℂ) ^ (-(1 : ℂ) - (((f i - f j) : ℝ) : ℂ) * Complex.I)
+
+/-- The evaluation matrix of the frequency family `f`, for a real cutoff. -/
+noncomputable def evalOf (f : ι → ℝ) (X : ℝ) : Matrix ι (Fin ⌊X⌋₊) ℂ :=
+  fun i m => ((m.val + 1 : ℕ) : ℂ) ^ (-(1 / 2 : ℂ) - (f i : ℂ) * Complex.I)
+
+/-- The evaluation matrix for a natural cutoff, indexed by `Fin X`. -/
+noncomputable def evalFin (f : ι → ℝ) (X : ℕ) : Matrix ι (Fin X) ℂ :=
+  fun i m => ((m.val + 1 : ℕ) : ℂ) ^ (-(1 / 2 : ℂ) - (f i : ℂ) * Complex.I)
+
+/-- **`G = E · Eᴴ`.** -/
+theorem gramOf_eq_mul_conjTranspose (f : ι → ℝ) (X : ℝ) :
+    gramOf (ι := ι) f X = evalOf f X * (evalOf f X)ᴴ := by
+  ext i j
+  simp only [gramOf, evalOf, Matrix.mul_apply, Matrix.conjTranspose_apply]
+  rw [sum_Icc_one_eq_sum_fin]
+  refine Finset.sum_congr rfl fun m _ => ?_
+  have hn : ((m.val + 1 : ℕ) : ℂ) ≠ 0 := by
+    have h : (m.val + 1 : ℕ) ≠ 0 := Nat.succ_ne_zero m.val
+    exact_mod_cast h
+  rw [cpow_conj_natCast, ← Complex.cpow_add _ _ hn, conj_half_exponent]
+  congr 1
+  push_cast
+  ring
+
+/-- **`G = E · Eᴴ` with the evaluation matrix indexed by `Fin X`** (natural cutoff). -/
+theorem gramOf_nat_eq_mul_conjTranspose (f : ι → ℝ) (X : ℕ) :
+    gramOf (ι := ι) f (X : ℝ) = evalFin f X * (evalFin f X)ᴴ := by
+  have hfloor : ⌊((X : ℕ) : ℝ)⌋₊ = X := Nat.floor_natCast X
+  ext i j
+  simp only [gramOf, evalFin, Matrix.mul_apply, Matrix.conjTranspose_apply, hfloor]
+  rw [sum_Icc_one_eq_sum_fin]
+  refine Finset.sum_congr rfl fun m _ => ?_
+  have hn : ((m.val + 1 : ℕ) : ℂ) ≠ 0 := by
+    have h : (m.val + 1 : ℕ) ≠ 0 := Nat.succ_ne_zero m.val
+    exact_mod_cast h
+  rw [cpow_conj_natCast, ← Complex.cpow_add _ _ hn, conj_half_exponent]
+  congr 1
+  push_cast
+  ring
+
+theorem gramOf_isHermitian (f : ι → ℝ) (X : ℝ) : (gramOf f X).IsHermitian := by
+  apply Matrix.IsHermitian.ext
+  intro i j
+  simp only [gramOf]
+  rw [star_sum]
+  refine Finset.sum_congr rfl fun n _ => ?_
+  rw [cpow_conj_natCast, conj_gram_exponent]
+
+/-- **`G` is positive semidefinite.** -/
+theorem gramOf_posSemidef (f : ι → ℝ) (X : ℝ) : (gramOf f X).PosSemidef := by
+  rw [gramOf_eq_mul_conjTranspose]
+  exact Matrix.posSemidef_self_mul_conjTranspose _
+
+theorem gramOf_diag (f : ι → ℝ) (X : ℝ) (i : ι) :
+    gramOf f X i i = ((harmonicR ⌊X⌋₊ : ℝ) : ℂ) := by
+  unfold harmonicR gramOf
+  push_cast
+  refine Finset.sum_congr rfl fun n _ => ?_
+  rw [sub_self, zero_mul, sub_zero, Complex.cpow_neg_one]
+
+/-- The eigenvalues of the Gram matrix of the frequency family `f`. -/
+noncomputable def eigOf (f : ι → ℝ) (X : ℝ) : ι → ℝ := (gramOf_isHermitian f X).eigenvalues
+
+/-- **Every eigenvalue is nonnegative.** -/
+theorem eigOf_nonneg (f : ι → ℝ) (X : ℝ) (i : ι) : 0 ≤ eigOf f X i := by
+  have hpsd := gramOf_posSemidef f X
+  have h := hpsd.eigenvalues_nonneg i
+  unfold eigOf
+  rw [show gramOf_isHermitian f X = hpsd.1 from Subsingleton.elim _ _]
+  exact h
+
+/-- **`rank G ≤ rank E`**, and `rank E ≤ X`. -/
+theorem rank_gramOf_le_rank_eval (f : ι → ℝ) (X : ℝ) :
+    (gramOf f X).rank ≤ (evalOf f X).rank := by
+  rw [gramOf_eq_mul_conjTranspose]
+  exact Matrix.rank_mul_le_left _ _
+
+theorem rank_gramOf_le (f : ι → ℝ) (X : ℝ) : (gramOf f X).rank ≤ ⌊X⌋₊ :=
+  (rank_gramOf_le_rank_eval f X).trans (by
+    simpa using Matrix.rank_le_card_width (evalOf f X))
+
+/-- **The nonzero eigenvalues number the rank** (Mathlib's `rank_eq_card_non_zero_eigs`). -/
+theorem card_nonzero_eigOf_eq_rank (f : ι → ℝ) (X : ℝ) :
+    (Finset.univ.filter fun i => eigOf f X i ≠ 0).card = (gramOf f X).rank := by
+  rw [(gramOf_isHermitian f X).rank_eq_card_non_zero_eigs]
+  exact (Fintype.card_subtype (fun i =>
+    (gramOf_isHermitian f X).eigenvalues i ≠ 0)).symm
+
+theorem zero_le_sSup_clamped (f : ι → ℝ) (X : ℝ) :
+    0 ≤ sSup (Set.range fun j => max (eigOf f X j) 0) := by
+  rcases (Set.range (fun j : ι => max (eigOf f X j) 0)).eq_empty_or_nonempty with h | h
+  · rw [h, Real.sSup_empty]
+  · obtain ⟨y, hy⟩ := h
+    obtain ⟨i, rfl⟩ := hy
+    exact le_trans (le_max_right _ _)
+      (le_csSup (Set.finite_range (fun j : ι => max (eigOf f X j) 0)).bddAbove
+        (Set.mem_range_self (f := fun j : ι => max (eigOf f X j) 0) i))
+
+/-- The number of frequencies whose clamped eigenvalue is at most `δ·max_j λ_j`, i.e. `N_van`
+for the family `f`. -/
+noncomputable def vanishOf (f : ι → ℝ) (X δ : ℝ) : ℕ :=
+  (Finset.univ.filter fun i =>
+    max (eigOf f X i) 0 ≤ δ * sSup (Set.range fun j => max (eigOf f X j) 0)).card
+
+/-- **The unconditional lower bound**: at least `card ι − X` frequencies vanish, for every
+`δ ≥ 0`. -/
+theorem vanishOf_ge (f : ι → ℝ) (X δ : ℝ) (hδ : 0 ≤ δ) :
+    Fintype.card ι ≤ vanishOf f X δ + ⌊X⌋₊ := by
+  have hsub : (Finset.univ.filter fun i => eigOf f X i = 0)
+      ⊆ (Finset.univ.filter fun i =>
+          max (eigOf f X i) 0 ≤ δ * sSup (Set.range fun j => max (eigOf f X j) 0)) := by
+    intro i hi
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hi ⊢
+    have hmax := zero_le_sSup_clamped f X
+    rw [hi, max_self]
+    exact mul_nonneg hδ hmax
+  have hcard := Finset.card_le_card hsub
+  have hsplit : (Finset.univ.filter fun i => eigOf f X i = 0).card
+      + (Finset.univ.filter fun i => eigOf f X i ≠ 0).card = Fintype.card ι := by
+    simpa only [ne_eq, Finset.card_univ] using
+      (Finset.card_filter_add_card_filter_not (s := (Finset.univ : Finset ι))
+        (p := fun i => eigOf f X i = 0))
+  have hnonzero := card_nonzero_eigOf_eq_rank f X
+  have hrank := rank_gramOf_le f X
+  unfold vanishOf
+  omega
+
+/-! ## The triplet-indexed matrix is the instance `f = modeB T` -/
+
+theorem gramMatrix_eq_gramOf (T X : ℝ) : gramMatrix T X = gramOf (modeB T) X := rfl
+
+/-- **`G = E Eᴴ` for the three-indexed matrix, with `E` indexed by `Fin X`. -/
+theorem gramMatrix_nat_eq_mul_conjTranspose (T : ℝ) (X : ℕ) :
+    gramMatrix T (X : ℝ) = evalFin (modeB T) X * (evalFin (modeB T) X)ᴴ := by
+  rw [gramMatrix_eq_gramOf]
+  exact gramOf_nat_eq_mul_conjTranspose (modeB T) X
+
+/-! ## The distinct-frequency lattice: `card ι = N_R(T)` -/
+
+/-- The distinct resonant frequencies at cutoff `T`. -/
+noncomputable def freqSet (T : ℝ) : Finset ℝ := (modeSet T).image fun p => b p.1 p.2.1 p.2.2
+
+/-- **The index type has cardinality `N_R(T)`.** -/
+theorem card_freqSet (T : ℝ) : (freqSet T).card = NR T := rfl
+
+/-- The Gram matrix indexed by the distinct resonant frequencies. -/
+noncomputable def gramFreq (T X : ℝ) : Matrix ↥(freqSet T) ↥(freqSet T) ℂ :=
+  gramOf (fun i : ↥(freqSet T) => i.1) X
+
+theorem gramFreq_eq_mul_conjTranspose (T X : ℝ) :
+    gramFreq T X = evalOf (fun i : ↥(freqSet T) => i.1) X
+      * (evalOf (fun i : ↥(freqSet T) => i.1) X)ᴴ :=
+  gramOf_eq_mul_conjTranspose _ _
+
+theorem gramFreq_isHermitian (T X : ℝ) : (gramFreq T X).IsHermitian := gramOf_isHermitian _ _
+
+theorem gramFreq_posSemidef (T X : ℝ) : (gramFreq T X).PosSemidef := gramOf_posSemidef _ _
+
+theorem rank_gramFreq_le (T X : ℝ) : (gramFreq T X).rank ≤ ⌊X⌋₊ := rank_gramOf_le _ _
+
+/-- The vanishing count of the distinct-frequency matrix. -/
+noncomputable def NvanFreq (T X δ : ℝ) : ℕ := vanishOf (fun i : ↥(freqSet T) => i.1) X δ
+
+theorem eigFreq_nonneg (T X : ℝ) (i : ↥(freqSet T)) : 0 ≤ eigOf (fun i : ↥(freqSet T) => i.1) X i :=
+  eigOf_nonneg _ _ _
+
+/-- **`N_van ≥ N_R(T) − X`, unconditionally in the collisions**: the index type is the set of
+distinct frequencies, so `card ι = N_R(T)` and at most `rank ≤ X` eigenvalues are nonzero. -/
+theorem NvanFreq_ge (T X δ : ℝ) (hδ : 0 ≤ δ) : NR T ≤ NvanFreq T X δ + ⌊X⌋₊ := by
+  have h := vanishOf_ge (fun i : ↥(freqSet T) => i.1) X δ hδ
+  rwa [Fintype.card_coe, card_freqSet] at h
+
+theorem NvanFreq_sub_ge (T X δ : ℝ) (hδ : 0 ≤ δ) : NR T - ⌊X⌋₊ ≤ NvanFreq T X δ := by
+  have h := NvanFreq_ge T X δ hδ
+  omega
+
+end FrequencyGrids

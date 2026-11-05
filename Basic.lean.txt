@@ -1,0 +1,112 @@
+/-
+Kakeya/Basic.lean
+
+Basic definitions for the planar Kakeya problem: direction vectors, unit segments,
+Kakeya (Besicovitch) sets and the thin tubes used in the quantitative theory.
+-/
+import Mathlib
+
+open scoped MeasureTheory ENNReal NNReal Topology
+open MeasureTheory Set Topology
+
+namespace Kakeya
+
+/-- The plane, as a Euclidean space over `ℝ`. -/
+abbrev Plane : Type := EuclideanSpace ℝ (Fin 2)
+
+/-- The unit vector making angle `θ` with the first coordinate axis. -/
+noncomputable def dir (θ : ℝ) : Plane :=
+  (WithLp.equiv 2 (Fin 2 → ℝ)).symm ![Real.cos θ, Real.sin θ]
+
+lemma dir_ofLp (θ : ℝ) (i : Fin 2) : (dir θ).ofLp i = ![Real.cos θ, Real.sin θ] i := by
+  simp [dir]
+
+/-- `dir (θ + π/2)` is `dir θ` rotated by a right angle. -/
+lemma dir_add_pi_div_two (θ : ℝ) :
+    dir (θ + Real.pi / 2) =
+      (WithLp.equiv 2 (Fin 2 → ℝ)).symm ![-Real.sin θ, Real.cos θ] := by
+  ext i; fin_cases i <;>
+    simp [dir, Real.cos_add, Real.sin_add, Real.cos_pi_div_two, Real.sin_pi_div_two]
+
+lemma dir_perp_ofLp (θ : ℝ) :
+    (dir (θ + Real.pi / 2)).ofLp = ![-Real.sin θ, Real.cos θ] := by
+  rw [dir_add_pi_div_two]; simp
+
+lemma inner_apply (x y : Plane) :
+    inner ℝ x y = y.ofLp 0 * x.ofLp 0 + y.ofLp 1 * x.ofLp 1 := by
+  rw [PiLp.inner_apply]
+  simp [Fin.sum_univ_two]
+
+/-- `dir` is a unit vector. -/
+lemma norm_dir (θ : ℝ) : ‖dir θ‖ = 1 := by
+  rw [EuclideanSpace.norm_eq, Fin.sum_univ_two]
+  simp [dir, Real.cos_sq_add_sin_sq]
+
+/-- The inner product of two unit direction vectors depends only on the angle difference. -/
+lemma inner_dir (θ φ : ℝ) : inner ℝ (dir θ) (dir φ) = Real.cos (θ - φ) := by
+  rw [inner_apply, Real.cos_sub]
+  simp only [dir_ofLp, Fin.isValue, Matrix.cons_val_zero, Matrix.cons_val_one]
+  ring
+
+lemma inner_dir_perp (θ : ℝ) : inner ℝ (dir θ) (dir (θ + Real.pi / 2)) = 0 := by
+  rw [inner_apply, dir_perp_ofLp]
+  simp only [dir_ofLp, Fin.isValue, Matrix.cons_val_zero, Matrix.cons_val_one]
+  ring
+
+/-- Expansion of a vector in the orthonormal frame `(dir θ, dir (θ + π/2))`. -/
+lemma eq_inner_decomp (θ : ℝ) (x : Plane) :
+    (inner ℝ x (dir θ)) • dir θ + (inner ℝ x (dir (θ + Real.pi / 2))) • dir (θ + Real.pi / 2)
+      = x := by
+  ext i
+  fin_cases i
+  · simp only [PiLp.add_apply, PiLp.smul_apply, smul_eq_mul, inner_apply, dir_ofLp,
+      Real.cos_add, Real.sin_add, Real.cos_pi_div_two, Real.sin_pi_div_two]
+    simp
+    ring_nf
+    linear_combination (x.ofLp 0) * Real.cos_sq_add_sin_sq θ
+  · simp only [PiLp.add_apply, PiLp.smul_apply, smul_eq_mul, inner_apply, dir_ofLp,
+      Real.cos_add, Real.sin_add, Real.cos_pi_div_two, Real.sin_pi_div_two]
+    simp
+    ring_nf
+    linear_combination (x.ofLp 1) * Real.cos_sq_add_sin_sq θ
+
+/-- The closed unit segment of direction `θ`, centred at `a`. -/
+def cseg (θ : ℝ) (a : Plane) : Set Plane :=
+  {x | ∃ t ∈ Icc (-(1 / 2 : ℝ)) (1 / 2), x = a + t • dir θ}
+
+/-- A set is a Kakeya (Besicovitch) set if it contains a translate of the unit segment in
+every direction. -/
+def IsKakeyaSet (E : Set Plane) : Prop := ∀ θ : ℝ, ∃ a : Plane, cseg θ a ⊆ E
+
+/-- The thin tube: length `1` in direction `θ`, width `2h`, centred at `a`. -/
+def planeTube (h θ : ℝ) (a : Plane) : Set Plane :=
+  {x | |inner ℝ (x - a) (dir θ)| ≤ 1 / 2 ∧ |inner ℝ (x - a) (dir (θ + Real.pi / 2))| ≤ h}
+
+/-- A tube is contained in the `h`-neighbourhood of its axis segment. -/
+lemma planeTube_subset_cthickening (h θ : ℝ) (a : Plane) :
+    planeTube h θ a ⊆ Metric.cthickening h (cseg θ a) := by
+  intro x hx
+  obtain ⟨hp, hq⟩ := hx
+  set p : ℝ := inner ℝ (x - a) (dir θ) with hpdef
+  set q : ℝ := inner ℝ (x - a) (dir (θ + Real.pi / 2)) with hqdef
+  have hdecomp : x - a = p • dir θ + q • dir (θ + Real.pi / 2) := by
+    rw [hpdef, hqdef]; exact (eq_inner_decomp θ (x - a)).symm
+  have hpa : p ∈ Icc (-(1 / 2 : ℝ)) (1 / 2) := by
+    rw [mem_Icc, ← abs_le]; simpa [hpdef] using hp
+  have hy : a + p • dir θ ∈ cseg θ a := ⟨p, hpa, rfl⟩
+  have hdist : dist x (a + p • dir θ) ≤ h := by
+    rw [dist_eq_norm]
+    have hsub : x - (a + p • dir θ) = q • dir (θ + Real.pi / 2) := by
+      rw [show x - (a + p • dir θ) = (x - a) - p • dir θ by abel, hdecomp]; abel
+    rw [hsub, norm_smul, norm_dir, mul_one, Real.norm_eq_abs]
+    simpa [hqdef] using hq
+  exact Metric.mem_cthickening_of_dist_le x (a + p • dir θ) h (cseg θ a) hy hdist
+
+/-- A Kakeya set's `h`-neighbourhood contains a tube in every direction. -/
+lemma IsKakeyaSet.exists_planeTube_subset_cthickening {E : Set Plane} (hE : IsKakeyaSet E)
+    (h : ℝ) (θ : ℝ) : ∃ a : Plane, planeTube h θ a ⊆ Metric.cthickening h E := by
+  obtain ⟨a, ha⟩ := hE θ
+  exact ⟨a, (planeTube_subset_cthickening h θ a).trans
+    (Metric.cthickening_subset_of_subset h ha)⟩
+
+end Kakeya

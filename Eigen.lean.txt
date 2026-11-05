@@ -1,0 +1,411 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).
+
+# The real diagnostics: the Gram matrix, its spectrum, `N_off` and `N_van`
+
+vf4 \S6.4.4--6.4.7 defines the two off-diagonal/spectral diagnostics numerically, from the
+Gram matrix of the resonant modes:
+
+  `G_ij(X) = Σ_{n ≤ X} n^{-1 - i(b_i - b_j)}`   (modes `i`, `j` ranging over the triplet set
+                                                 with `|b| ≤ T`),
+
+  `r_j(X) = (Σ_{i ≠ j} |G_ij(X)|) / |G_jj(X)|`,   `N_off(T,X,δ_X) = #{j : r_j(X) > δ_X}`,
+
+  `λ_j`   = eigenvalues of `(G + G*)/2`, clamped at `0`,
+  `N_van(T,X,δ_T) = #{j : λ_j ≤ δ_T · max_j λ_j}`.
+
+Here we define exactly these objects, with `Fin`-indexed matrices over the triplet set.  Two
+mathematical facts make the definitions well posed:
+
+* `G` is already Hermitian (`gramMatrix_isHermitian`), so the symmetrisation `(G+G*)/2` of
+  the code is the identity on `G`;
+* the clamping `max (λ, 0)` is kept, as in the code: it is the identity when `G` is positive
+  semidefinite, and `G = A A*` with `A_{j,n} = n^{-1/2 - i b_j}` is not formalized here.
+
+The eigenvalues are those of Mathlib's spectral theorem for Hermitian matrices
+(`Matrix.IsHermitian.eigenvalues`), i.e. exact real numbers rather than floating point.
+-/
+import FrequencyGrids.Structure
+
+set_option maxRecDepth 8000
+set_option maxHeartbeats 2000000
+
+namespace FrequencyGrids
+
+open Complex Matrix
+
+/-! ## Conjugation of complex powers with natural base -/
+
+/-- `star (m^w) = m^(star w)` for a natural `m` (viewed in `ℂ`); the base is a nonnegative
+real, fixed by conjugation. -/
+theorem cpow_conj_natCast (m : ℕ) (w : ℂ) :
+    star ((m : ℂ) ^ w) = (m : ℂ) ^ (star w) := by
+  change (starRingEnd ℂ) ((m : ℂ) ^ w) = (m : ℂ) ^ ((starRingEnd ℂ) w)
+  have harg : ((m : ℂ)).arg ≠ Real.pi := by
+    have hm : (m : ℂ) = ((m : ℝ) : ℂ) := by push_cast; ring
+    rw [hm, Complex.arg_ofReal_of_nonneg (by positivity)]
+    exact Ne.symm Real.pi_ne_zero
+  have h := Complex.cpow_conj ((m : ℂ)) w harg
+  have hx : (starRingEnd ℂ) ((m : ℂ)) = (m : ℂ) := Complex.conj_natCast m
+  rw [← hx, ← h, hx]
+
+/-- Conjugating the Gram exponent `-1 - i(x-y)` gives `-1 - i(y-x)`. -/
+theorem conj_gram_exponent (x y : ℝ) :
+    star (-(1:ℂ) - ((x - y : ℝ) : ℂ) * Complex.I)
+      = -(1:ℂ) - ((y - x : ℝ) : ℂ) * Complex.I := by
+  change (starRingEnd ℂ) (-(1:ℂ) - ((x - y : ℝ) : ℂ) * Complex.I) = _
+  rw [map_sub, map_mul, Complex.conj_ofReal, Complex.conj_I]
+  rw [show (starRingEnd ℂ) (-(1:ℂ)) = -(1:ℂ) by simp]
+  push_cast
+  ring
+
+/-! ## The Gram matrix of the resonant modes -/
+
+/-- The frequency of a mode, i.e. of a triplet of `modeSet T`. -/
+noncomputable def modeB (T : ℝ) (p : ↥(modeSet T)) : ℝ := b p.1.1 p.1.2.1 p.1.2.2
+
+/-- The Gram matrix `G_ij(X) = Σ_{n ≤ X} n^{-1-i(b_i-b_j)}` of the resonant modes. -/
+noncomputable def gramMatrix (T X : ℝ) : Matrix ↥(modeSet T) ↥(modeSet T) ℂ :=
+  fun i j => ∑ n ∈ Finset.Icc 1 ⌊X⌋₊,
+    (n : ℂ) ^ (-(1 : ℂ) - (((modeB T i - modeB T j) : ℝ) : ℂ) * Complex.I)
+
+/-- **`G` is Hermitian**: `conj (G_ji) = G_ij`.  Hence the code's `(G + G*)/2` equals `G`. -/
+theorem gramMatrix_isHermitian (T X : ℝ) : (gramMatrix T X).IsHermitian := by
+  apply Matrix.IsHermitian.ext
+  intro i j
+  simp only [gramMatrix]
+  rw [star_sum]
+  apply Finset.sum_congr rfl
+  intro n _
+  rw [cpow_conj_natCast, conj_gram_exponent]
+
+/-- The eigenvalues `λ_j` of the Gram matrix (real, by the spectral theorem). -/
+noncomputable def eig (T X : ℝ) (i : ↥(modeSet T)) : ℝ :=
+  (gramMatrix_isHermitian T X).eigenvalues i
+
+/-- The eigenvalues clamped at `0`, exactly as `np.maximum(eigenvalues, 0)` in vf4 \S6.4.7. -/
+noncomputable def eigPos (T X : ℝ) (i : ↥(modeSet T)) : ℝ := max (eig T X i) 0
+
+/-- The largest clamped eigenvalue; `sSup ∅ = 0`, matching the code's empty-matrix case. -/
+noncomputable def eigMax (T X : ℝ) : ℝ := sSup (Set.range (eigPos T X))
+
+/-! ## The two diagnostics -/
+
+/-- The off-diagonal interference of mode `i`: `Σ_{j ≠ i} |G_ji(X)|`. -/
+noncomputable def offSum (T X : ℝ) (i : ↥(modeSet T)) : ℝ :=
+  ∑ j ∈ Finset.univ.erase i, ‖gramMatrix T X j i‖
+
+/-- The relative interference `r_j(X) = I_j(X) / |G_jj(X)|` of vf4 \S6.4.4. -/
+noncomputable def offRatio (T X : ℝ) (i : ↥(modeSet T)) : ℝ :=
+  offSum T X i / ‖gramMatrix T X i i‖
+
+/-- **`N_off(T,X,δ_X)`**: the number of modes whose relative interference exceeds `δ_X`. -/
+noncomputable def Noff (T X δ : ℝ) : ℕ :=
+  (Finset.univ.filter fun i => offRatio T X i > δ).card
+
+/-- **`N_van(T,X,δ_T)`**: the number of clamped eigenvalues below the relative threshold
+`δ_T · max_j λ_j`. -/
+noncomputable def Nvan (T X δ : ℝ) : ℕ :=
+  (Finset.univ.filter fun i => eigPos T X i ≤ δ * eigMax T X).card
+
+/-! ## Sanity lemmas -/
+
+theorem card_univ_modeSet (T : ℝ) :
+    (Finset.univ : Finset ↥(modeSet T)).card = Ntotal T := by
+  rw [Finset.card_univ, Fintype.card_coe]
+  rfl
+
+theorem Noff_le_Ntotal (T X δ : ℝ) : Noff T X δ ≤ Ntotal T := by
+  unfold Noff
+  calc (Finset.univ.filter fun i => offRatio T X i > δ).card
+      ≤ (Finset.univ : Finset ↥(modeSet T)).card := Finset.card_filter_le _ _
+    _ = Ntotal T := card_univ_modeSet T
+
+theorem Nvan_le_Ntotal (T X δ : ℝ) : Nvan T X δ ≤ Ntotal T := by
+  unfold Nvan
+  calc (Finset.univ.filter fun i => eigPos T X i ≤ δ * eigMax T X).card
+      ≤ (Finset.univ : Finset ↥(modeSet T)).card := Finset.card_filter_le _ _
+    _ = Ntotal T := card_univ_modeSet T
+
+theorem eigPos_le_eigMax (T X : ℝ) (i : ↥(modeSet T)) : eigPos T X i ≤ eigMax T X :=
+  le_csSup (Set.finite_range _).bddAbove (Set.mem_range_self i)
+
+/-- The threshold `max_j λ_j` is nonnegative (when there is at least one mode). -/
+theorem eigMax_nonneg (T X : ℝ) (h : (modeSet T).Nonempty) : 0 ≤ eigMax T X := by
+  obtain ⟨p, hp⟩ := h
+  have h1 : eigPos T X ⟨p, hp⟩ ≤ eigMax T X := eigPos_le_eigMax T X ⟨p, hp⟩
+  have h2 : (0:ℝ) ≤ eigPos T X ⟨p, hp⟩ := le_max_right _ _
+  linarith
+
+
+/-!
+## The factorisation `G = E · Eᴴ`, and what follows from it
+
+`G_ij(X) = Σ_{n ≤ X} n^{-1-i(b_i-b_j)}` is the Gram matrix of the vectors
+`E_j = (n^{-1/2-i b_j})_{n ≤ X}`, i.e. `G = E Eᴴ`.  Hence `G` is positive semidefinite, its
+eigenvalues are nonnegative, the clamp `max (λ,0)` is the identity, and `rank G ≤ X`.
+-/
+
+section Factorisation
+
+open scoped ComplexOrder
+
+/-- The factor `E` of the Gram matrix: `E i m = (m+1)^{-1/2 - i b_i}`. -/
+noncomputable def gramE (T X : ℝ) : Matrix ↥(modeSet T) (Fin ⌊X⌋₊) ℂ :=
+  fun i m => ((m.val + 1 : ℕ) : ℂ) ^ (-(1 / 2 : ℂ) - (modeB T i : ℂ) * Complex.I)
+
+/-- Conjugating the half exponent `-1/2 - ix`. -/
+theorem conj_half_exponent (x : ℝ) :
+    star (-(1 / 2 : ℂ) - (x : ℂ) * Complex.I) = -(1 / 2 : ℂ) + (x : ℂ) * Complex.I := by
+  change (starRingEnd ℂ) (-(1 / 2 : ℂ) - (x : ℂ) * Complex.I)
+    = -(1 / 2 : ℂ) + (x : ℂ) * Complex.I
+  rw [map_sub, map_mul, Complex.conj_ofReal, Complex.conj_I, map_neg, map_div₀, map_one,
+    Complex.conj_ofNat]
+  ring
+
+/-- Reindexing `1 ≤ n ≤ N` as `n = m + 1` with `m : Fin N`. -/
+theorem sum_Icc_one_eq_sum_fin (N : ℕ) (f : ℕ → ℂ) :
+    (∑ n ∈ Finset.Icc 1 N, f n) = ∑ m : Fin N, f (m.val + 1) := by
+  rw [Fin.sum_univ_eq_sum_range (fun k => f (k + 1)) N]
+  conv_lhs =>
+    rw [show Finset.Icc 1 N = Finset.Ico 1 (N + 1) from by
+      ext x
+      simp only [Finset.mem_Icc, Finset.mem_Ico]
+      omega]
+  rw [Finset.sum_Ico_eq_sum_range]
+  simp only [Nat.add_sub_cancel]
+  refine Finset.sum_congr rfl fun k _ => ?_
+  rw [Nat.add_comm]
+
+/-- **`G = E · Eᴴ`.** -/
+theorem gramMatrix_eq_mul_conjTranspose (T X : ℝ) :
+    gramMatrix T X = gramE T X * (gramE T X)ᴴ := by
+  ext i j
+  simp only [gramMatrix, gramE, Matrix.mul_apply, Matrix.conjTranspose_apply]
+  rw [sum_Icc_one_eq_sum_fin]
+  refine Finset.sum_congr rfl fun m _ => ?_
+  have hn : ((m.val + 1 : ℕ) : ℂ) ≠ 0 := by
+    have h : (m.val + 1 : ℕ) ≠ 0 := Nat.succ_ne_zero m.val
+    exact_mod_cast h
+  rw [cpow_conj_natCast, ← Complex.cpow_add _ _ hn, conj_half_exponent]
+  congr 1
+  push_cast
+  ring
+
+/-- **`G` is positive semidefinite**, as `E Eᴴ`. -/
+theorem gramMatrix_posSemidef (T X : ℝ) : (gramMatrix T X).PosSemidef := by
+  rw [gramMatrix_eq_mul_conjTranspose]
+  exact Matrix.posSemidef_self_mul_conjTranspose _
+
+/-- Eigenvalues do not depend on the particular proof of hermitianity (the proof is
+irrelevant and the eigenvalue map has a proof-independent value type). -/
+theorem eigenvalues_congr {n : Type*} [Fintype n] [DecidableEq n] {A : Matrix n n ℂ}
+    (h1 h2 : A.IsHermitian) : h1.eigenvalues = h2.eigenvalues := by
+  rw [Subsingleton.elim h1 h2]
+
+/-- **The eigenvalues of `G` are nonnegative.** -/
+theorem eig_nonneg (T X : ℝ) (i : ↥(modeSet T)) : 0 ≤ eig T X i := by
+  have hpsd := gramMatrix_posSemidef T X
+  have h := hpsd.eigenvalues_nonneg i
+  unfold eig
+  rw [show gramMatrix_isHermitian T X = hpsd.1 from Subsingleton.elim _ _]
+  exact h
+
+/-- **The clamp is the identity**: `max (λ,0) = λ`. -/
+theorem eigPos_eq_eig (T X : ℝ) (i : ↥(modeSet T)) : eigPos T X i = eig T X i := by
+  unfold eigPos
+  exact max_eq_left (eig_nonneg T X i)
+
+/-- The largest clamped eigenvalue is nonnegative, for every `T` (also when there is no mode,
+where the supremum of the empty set is `0`). -/
+theorem zero_le_eigMax (T X : ℝ) : 0 ≤ eigMax T X := by
+  rcases (modeSet T).eq_empty_or_nonempty with h | h
+  · unfold eigMax
+    have hempty : Set.range (eigPos T X) = ∅ := by
+      rw [Set.range_eq_empty_iff]
+      exact ⟨fun i => absurd i.2 (by simp [h])⟩
+    rw [hempty, Real.sSup_empty]
+  · exact eigMax_nonneg T X h
+
+/-- **`rank G(X) ≤ X`**: `G` has at most `X` rows in its factorisation. -/
+theorem rank_gramMatrix_le (T X : ℝ) : (gramMatrix T X).rank ≤ ⌊X⌋₊ := by
+  rw [gramMatrix_eq_mul_conjTranspose]
+  calc (gramE T X * (gramE T X)ᴴ).rank ≤ (gramE T X).rank := Matrix.rank_mul_le_left _ _
+    _ ≤ ⌊X⌋₊ := by
+        simpa using Matrix.rank_le_card_width (gramE T X)
+
+/-- The eigenvector equation, phrased for the eigenvalue function `eig`. -/
+theorem mulVec_eigenvectorBasis_eig (T X : ℝ) (i : ↥(modeSet T)) :
+    gramMatrix T X *ᵥ ((gramMatrix_isHermitian T X).eigenvectorBasis i).ofLp
+      = (eig T X i : ℝ) • ((gramMatrix_isHermitian T X).eigenvectorBasis i).ofLp :=
+  (gramMatrix_isHermitian T X).mulVec_eigenvectorBasis i
+
+/-- **The number of nonzero eigenvalues is the rank.**  For a Hermitian matrix,
+`#{i : λ_i ≠ 0} = rank`, so the vanishing (zero) eigenvalues are exactly `card − rank` many. -/
+theorem card_nonzero_eig_eq_rank (T X : ℝ) :
+    (Finset.univ.filter (fun i : ↥(modeSet T) => eig T X i ≠ 0)).card
+      = (gramMatrix T X).rank := by
+  rw [(gramMatrix_isHermitian T X).rank_eq_card_non_zero_eigs]
+  exact (Fintype.card_subtype (fun i : ↥(modeSet T) =>
+    (gramMatrix_isHermitian T X).eigenvalues i ≠ 0)).symm
+
+theorem card_nonzero_eig_le_rank (T X : ℝ) :
+    (Finset.univ.filter (fun i : ↥(modeSet T) => eig T X i ≠ 0)).card
+      ≤ (gramMatrix T X).rank :=
+  (card_nonzero_eig_eq_rank T X).le
+
+/-- **`N_van ≥ card − X`**, in additive form: each mode is either counted by the rank (a
+nonzero eigenvalue) or has a zero eigenvalue, and zero eigenvalues are always at or below the
+threshold `δ · max_j λ_j` when `δ ≥ 0`. -/
+theorem card_le_Nvan_add (T X δ : ℝ) (hδ : 0 ≤ δ) :
+    (modeSet T).card ≤ Nvan T X δ + ⌊X⌋₊ := by
+  classical
+  have hsub : (Finset.univ.filter (fun i : ↥(modeSet T) => eig T X i = 0))
+      ⊆ (Finset.univ.filter (fun i : ↥(modeSet T) => eigPos T X i ≤ δ * eigMax T X)) := by
+    intro i hi
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hi ⊢
+    rw [eigPos_eq_eig, hi]
+    have := zero_le_eigMax T X
+    nlinarith
+  have hcard := Finset.card_le_card hsub
+  have huniv : (Finset.univ : Finset ↥(modeSet T)).card = (modeSet T).card := by
+    rw [Finset.card_univ, Fintype.card_coe]
+  have hsplit : (Finset.univ.filter (fun i : ↥(modeSet T) => eig T X i = 0)).card
+      + (Finset.univ.filter (fun i : ↥(modeSet T) => eig T X i ≠ 0)).card
+      = (modeSet T).card := by
+    rw [← huniv]
+    simpa only [ne_eq] using
+      (Finset.card_filter_add_card_filter_not (s := (Finset.univ : Finset ↥(modeSet T)))
+        (p := fun i => eig T X i = 0))
+  have hnonzero := card_nonzero_eig_le_rank T X
+  have hrank := rank_gramMatrix_le T X
+  unfold Nvan
+  omega
+
+/-- `N_van ≥ N_tot − X` for every `δ ≥ 0`. -/
+theorem Ntotal_sub_le_Nvan (T X δ : ℝ) (hδ : 0 ≤ δ) : Ntotal T - ⌊X⌋₊ ≤ Nvan T X δ := by
+  have h := card_le_Nvan_add T X δ hδ
+  unfold Ntotal
+  omega
+
+/-- **`N_van ≥ N_R − X` for every `δ ≥ 0`**, with no hypothesis: there are no collisions
+(`not_hasCollision`), so `N_R = N_tot`. -/
+theorem NR_sub_le_Nvan (T X δ : ℝ) (hδ : 0 ≤ δ) : NR T - ⌊X⌋₊ ≤ Nvan T X δ := by
+  rw [NR_eq_Ntotal T]
+  exact Ntotal_sub_le_Nvan T X δ hδ
+/-! ## When does `N_off` count every mode?
+
+The numerical experiment of vf4 §6.4.8 has `r_j(X) > δ` for every mode `j`.  The following two
+lemmas isolate exactly what a proof of that would have to establish; they are the reduction of
+the statement to a lower bound on the Gram entries. -/
+
+/-- If every mode's relative interference exceeds the tolerance, `N_off` counts every mode. -/
+theorem Noff_eq_card_of_forall_gt (T X δ : ℝ)
+    (h : ∀ i : ↥(modeSet T), δ < offRatio T X i) : Noff T X δ = (modeSet T).card := by
+  have hfilter : (Finset.univ.filter fun i : ↥(modeSet T) => offRatio T X i > δ)
+      = Finset.univ := by
+    refine Finset.filter_true_of_mem ?_
+    intro i _
+    exact h i
+  unfold Noff
+  rw [hfilter, Finset.card_univ, Fintype.card_coe]
+
+/-- **Single-entry (nearest-neighbour) criterion.**  If for every mode `i` there is another
+mode `j` whose Gram entry already exceeds `δ |G_ii|`, then `N_off` counts every mode.  This is
+the form in which the numerical statement of vf4 §6.4.8 would be proved: the missing input is
+a lower bound `|G_ji| > δ |G_ii| = δ H_X` for one neighbour per mode. -/
+theorem Noff_eq_card_of_gram_gt (T X δ : ℝ)
+    (hD : ∀ i : ↥(modeSet T), 0 < ‖gramMatrix T X i i‖)
+    (h : ∀ i : ↥(modeSet T), ∃ j ∈ Finset.univ.erase i,
+      δ * ‖gramMatrix T X i i‖ < ‖gramMatrix T X j i‖) :
+    Noff T X δ = (modeSet T).card := by
+  refine Noff_eq_card_of_forall_gt T X δ fun i => ?_
+  obtain ⟨j, hj, hji⟩ := h i
+  have hle : ‖gramMatrix T X j i‖ ≤ offSum T X i :=
+    Finset.single_le_sum (f := fun j => ‖gramMatrix T X j i‖) (fun _ _ => norm_nonneg _) hj
+  unfold offRatio
+  rw [lt_div_iff₀ (hD i)]
+  linarith
+
+/-! ## The diagonal of the Gram matrix, and the rank of the factor
+
+The diagonal entry `G_ii(X)` is the `⌊X⌋`-th harmonic number: the frequency cancels.  This
+computes the normalising constant of `N_off` (`|G_jj| = H_X`) and removes the hypothesis
+`0 < ‖G_ii‖` from the single-entry criterion below. -/
+
+/-- The `N`-th harmonic number, as a real number: `H_N = Σ_{1 ≤ n ≤ N} 1/n`. -/
+noncomputable def harmonicR (N : ℕ) : ℝ := ∑ n ∈ Finset.Icc 1 N, ((n : ℝ))⁻¹
+
+theorem harmonicR_eq_harmonic (N : ℕ) : harmonicR N = ((harmonic N : ℚ) : ℝ) := by
+  induction N with
+  | zero => simp [harmonicR]
+  | succ k ih =>
+    have hstep : harmonicR (k + 1) = harmonicR k + (((k : ℝ)) + 1)⁻¹ := by
+      unfold harmonicR
+      rw [Finset.sum_Icc_succ_top (by omega)]
+      push_cast
+      ring
+    rw [hstep, ih, harmonic_succ]
+    push_cast
+    ring
+
+theorem harmonicR_pos {N : ℕ} (hN : 0 < N) : 0 < harmonicR N := by
+  rw [harmonicR_eq_harmonic]
+  have h : 0 < harmonic N := harmonic_pos (Nat.pos_iff_ne_zero.mp hN)
+  exact_mod_cast h
+
+/-- **The diagonal is the harmonic number**: `G_ii(X) = H_{⌊X⌋}`. -/
+theorem gramMatrix_diag (T X : ℝ) (i : ↥(modeSet T)) :
+    gramMatrix T X i i = ((harmonicR ⌊X⌋₊ : ℝ) : ℂ) := by
+  unfold harmonicR gramMatrix
+  push_cast
+  refine Finset.sum_congr rfl fun n _ => ?_
+  rw [sub_self, zero_mul, sub_zero, Complex.cpow_neg_one]
+
+/-- The diagonal in Mathlib's harmonic numbers. -/
+theorem gramMatrix_diag_eq_harmonic (T X : ℝ) (i : ↥(modeSet T)) :
+    gramMatrix T X i i = ((((harmonic ⌊X⌋₊ : ℚ) : ℝ)) : ℂ) := by
+  rw [gramMatrix_diag, harmonicR_eq_harmonic]
+
+theorem gramMatrix_diag_pos (T X : ℝ) (hX : 1 ≤ ⌊X⌋₊) (i : ↥(modeSet T)) :
+    0 < ‖gramMatrix T X i i‖ := by
+  rw [gramMatrix_diag, Complex.norm_real, Real.norm_eq_abs,
+    abs_of_pos (harmonicR_pos (by omega))]
+  exact harmonicR_pos (by omega)
+
+/-- **`rank G ≤ rank E ≤ X`**, with the two steps separated. -/
+theorem rank_gramMatrix_le_rank_gramE (T X : ℝ) :
+    (gramMatrix T X).rank ≤ (gramE T X).rank := by
+  rw [gramMatrix_eq_mul_conjTranspose]
+  exact Matrix.rank_mul_le_left _ _
+
+/-- **At least `card − X` eigenvalues vanish.** -/
+theorem card_zero_eig_ge (T X : ℝ) :
+    (modeSet T).card - ⌊X⌋₊
+      ≤ (Finset.univ.filter fun i : ↥(modeSet T) => eig T X i = 0).card := by
+  classical
+  have huniv : (Finset.univ : Finset ↥(modeSet T)).card = (modeSet T).card := by
+    rw [Finset.card_univ, Fintype.card_coe]
+  have hsplit : (Finset.univ.filter (fun i : ↥(modeSet T) => eig T X i = 0)).card
+      + (Finset.univ.filter (fun i : ↥(modeSet T) => eig T X i ≠ 0)).card
+      = (modeSet T).card := by
+    rw [← huniv]
+    simpa only [ne_eq] using
+      (Finset.card_filter_add_card_filter_not (s := (Finset.univ : Finset ↥(modeSet T)))
+        (p := fun i => eig T X i = 0))
+  have hnonzero := card_nonzero_eig_eq_rank T X
+  have hrank := rank_gramMatrix_le T X
+  omega
+
+/-- The single-entry criterion with the diagonal hypothesis discharged: for `⌊X⌋ ≥ 1` the
+diagonal is `H_{⌊X⌋} > 0`, so no side condition on `G_ii` is needed. -/
+theorem Noff_eq_card_of_gram_gt' (T X δ : ℝ) (hX : 1 ≤ ⌊X⌋₊)
+    (h : ∀ i : ↥(modeSet T), ∃ j ∈ Finset.univ.erase i,
+      δ * ‖gramMatrix T X i i‖ < ‖gramMatrix T X j i‖) :
+    Noff T X δ = (modeSet T).card :=
+  Noff_eq_card_of_gram_gt T X δ (gramMatrix_diag_pos T X hX) h
+
+end Factorisation
+
+end FrequencyGrids

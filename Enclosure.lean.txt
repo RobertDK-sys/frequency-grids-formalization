@@ -1,0 +1,113 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).
+
+# Certified enclosures of `s2(1)`, …, `s2(10)`
+
+Each root is bracketed by two rationals at distance `4·10⁻⁶`, and `E` is checked at the two ends
+by `norm_num` (a polynomial evaluation).  Uniqueness (`s2_unique`) turns the sign change into a
+membership statement for `s2 t`, `s2_mem_of_sign_change`.
+
+These are the certified inputs that the finite verification of vf4 §6.4.8 asks for; the
+neighbour search over the resulting frequencies (which needs interval bounds on `arcsin`, `π`
+and `ln 2`) is not carried out.
+-/
+import FrequencyGrids.Uniqueness
+
+set_option maxRecDepth 10000
+
+set_option maxHeartbeats 4000000
+
+namespace FrequencyGrids
+
+/-- `s2 1` lies in `(-942826/10^6, -942822/10^6)`. -/
+theorem s2_enclosure_1 : s2 1 ∈ Set.Ioo ((-942826:ℝ)/1000000) ((-942822:ℝ)/1000000) := by
+  refine s2_mem_of_sign_change (t := 1) (by norm_num) (by norm_num)
+    (lo := (-942826:ℝ)/1000000) (hi := (-942822:ℝ)/1000000) ?_ ?_ (by norm_num) ?_ ?_
+  · norm_num
+  · norm_num
+  · rw [E_eq']; norm_num
+  · rw [E_eq']; norm_num
+
+/-- `s2 2` lies in `(-970975/10^6, -970971/10^6)`. -/
+theorem s2_enclosure_2 : s2 2 ∈ Set.Ioo ((-970975:ℝ)/1000000) ((-970971:ℝ)/1000000) := by
+  refine s2_mem_of_sign_change (t := 2) (by norm_num) (by norm_num)
+    (lo := (-970975:ℝ)/1000000) (hi := (-970971:ℝ)/1000000) ?_ ?_ (by norm_num) ?_ ?_
+  · norm_num
+  · norm_num
+  · rw [E_eq']; norm_num
+  · rw [E_eq']; norm_num
+
+/-- `s2 3` lies in `(-980554/10^6, -980550/10^6)`. -/
+theorem s2_enclosure_3 : s2 3 ∈ Set.Ioo ((-980554:ℝ)/1000000) ((-980550:ℝ)/1000000) := by
+  refine s2_mem_of_sign_change (t := 3) (by norm_num) (by norm_num)
+    (lo := (-980554:ℝ)/1000000) (hi := (-980550:ℝ)/1000000) ?_ ?_ (by norm_num) ?_ ?_
+  · norm_num
+  · norm_num
+  · rw [E_eq']; norm_num
+  · rw [E_eq']; norm_num
+
+/-- `s2 4` lies in `(-985380/10^6, -985376/10^6)`. -/
+theorem s2_enclosure_4 : s2 4 ∈ Set.Ioo ((-985380:ℝ)/1000000) ((-985376:ℝ)/1000000) := by
+  refine s2_mem_of_sign_change (t := 4) (by norm_num) (by norm_num)
+    (lo := (-985380:ℝ)/1000000) (hi := (-985376:ℝ)/1000000) ?_ ?_ (by norm_num) ?_ ?_
+  · norm_num
+  · norm_num
+  · rw [E_eq']; norm_num
+  · rw [E_eq']; norm_num
+
+/-- `s2 5` lies in `(-988287/10^6, -988283/10^6)`. -/
+theorem s2_enclosure_5 : s2 5 ∈ Set.Ioo ((-988287:ℝ)/1000000) ((-988283:ℝ)/1000000) := by
+  refine s2_mem_of_sign_change (t := 5) (by norm_num) (by norm_num)
+    (lo := (-988287:ℝ)/1000000) (hi := (-988283:ℝ)/1000000) ?_ ?_ (by norm_num) ?_ ?_
+  · norm_num
+  · norm_num
+  · rw [E_eq']; norm_num
+  · rw [E_eq']; norm_num
+
+/-- `s2 6` lies in `(-990230/10^6, -990226/10^6)`. -/
+theorem s2_enclosure_6 : s2 6 ∈ Set.Ioo ((-990230:ℝ)/1000000) ((-990226:ℝ)/1000000) := by
+  refine s2_mem_of_sign_change (t := 6) (by norm_num) (by norm_num)
+    (lo := (-990230:ℝ)/1000000) (hi := (-990226:ℝ)/1000000) ?_ ?_ (by norm_num) ?_ ?_
+  · norm_num
+  · norm_num
+  · rw [E_eq']; norm_num
+  · rw [E_eq']; norm_num
+
+/-- `s2 7` lies in `(-991620/10^6, -991616/10^6)`. -/
+theorem s2_enclosure_7 : s2 7 ∈ Set.Ioo ((-991620:ℝ)/1000000) ((-991616:ℝ)/1000000) := by
+  refine s2_mem_of_sign_change (t := 7) (by norm_num) (by norm_num)
+    (lo := (-991620:ℝ)/1000000) (hi := (-991616:ℝ)/1000000) ?_ ?_ (by norm_num) ?_ ?_
+  · norm_num
+  · norm_num
+  · rw [E_eq']; norm_num
+  · rw [E_eq']; norm_num
+
+/-- `s2 8` lies in `(-992664/10^6, -992660/10^6)`. -/
+theorem s2_enclosure_8 : s2 8 ∈ Set.Ioo ((-992664:ℝ)/1000000) ((-992660:ℝ)/1000000) := by
+  refine s2_mem_of_sign_change (t := 8) (by norm_num) (by norm_num)
+    (lo := (-992664:ℝ)/1000000) (hi := (-992660:ℝ)/1000000) ?_ ?_ (by norm_num) ?_ ?_
+  · norm_num
+  · norm_num
+  · rw [E_eq']; norm_num
+  · rw [E_eq']; norm_num
+
+/-- `s2 9` lies in `(-993477/10^6, -993473/10^6)`. -/
+theorem s2_enclosure_9 : s2 9 ∈ Set.Ioo ((-993477:ℝ)/1000000) ((-993473:ℝ)/1000000) := by
+  refine s2_mem_of_sign_change (t := 9) (by norm_num) (by norm_num)
+    (lo := (-993477:ℝ)/1000000) (hi := (-993473:ℝ)/1000000) ?_ ?_ (by norm_num) ?_ ?_
+  · norm_num
+  · norm_num
+  · rw [E_eq']; norm_num
+  · rw [E_eq']; norm_num
+
+/-- `s2 10` lies in `(-994127/10^6, -994123/10^6)`. -/
+theorem s2_enclosure_10 : s2 10 ∈ Set.Ioo ((-994127:ℝ)/1000000) ((-994123:ℝ)/1000000) := by
+  refine s2_mem_of_sign_change (t := 10) (by norm_num) (by norm_num)
+    (lo := (-994127:ℝ)/1000000) (hi := (-994123:ℝ)/1000000) ?_ ?_ (by norm_num) ?_ ?_
+  · norm_num
+  · norm_num
+  · rw [E_eq']; norm_num
+  · rw [E_eq']; norm_num
+
+end FrequencyGrids

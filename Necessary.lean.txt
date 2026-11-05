@@ -1,0 +1,163 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).
+
+# The necessary growth of the truncation
+
+`N_van(T,X,δ)` counts the modes whose clamped Gram eigenvalue is at most `δ·max λ`, and every
+mode with zero eigenvalue is counted.  Since `rank G(X) ≤ X`, at least `card − X` modes vanish
+identically, so
+
+  `N_van(T,X,δ) ≥ N_tot(T) − X`   (and `≥ N_R(T) − X` when there is no collision).
+
+Hence `N_van = o(N_R)` is *impossible* for a truncation schedule growing slower than the mode
+count: it forces `X(T) ≥ (1−ε)·N_tot(T)` for every `ε > 0` and all large `T`.  This makes the
+conjecture of vf4 §6.4.13 quantitatively restrictive, and refutes it for `X ≤ c·N_R`, `c < 1`.
+-/
+import FrequencyGrids.Conjectures
+
+set_option maxRecDepth 10000
+
+namespace FrequencyGrids
+
+open Filter Asymptotics
+
+/-! ## `N_tot` diverges -/
+
+/-- The mode count is eventually positive (indeed `N_tot(T) ~ 200 T ln 2 / π`). -/
+theorem eventually_Ntotal_pos : ∀ᶠ T : ℝ in atTop, 0 < (Ntotal T : ℝ) := by
+  have hlin : Tendsto (fun T : ℝ => (200 * Real.log 2 / Real.pi) * T) atTop atTop :=
+    Tendsto.const_mul_atTop (by positivity) tendsto_id
+  filter_upwards [hlin.eventually (eventually_gt_atTop (601 : ℝ)),
+    eventually_ge_atTop (0 : ℝ)] with T hT hT0
+  have hb := Ntotal_bounds T hT0
+  have hlow : -(600 : ℝ) ≤ (Ntotal T : ℝ) - 200 * (T * Real.log 2 / Real.pi) :=
+    (neg_le_neg hb).trans (neg_abs_le _)
+  have hcast : 200 * (T * Real.log 2 / Real.pi) = (200 * Real.log 2 / Real.pi) * T := by ring
+  linarith
+
+/-- The number of distinct resonant frequencies is eventually positive. -/
+theorem eventually_NR_pos : ∀ᶠ T : ℝ in atTop, 0 < NR T := by
+  filter_upwards [eventually_Ntotal_pos] with T hT
+  have hne : (modeSet T).Nonempty := by
+    rw [← Finset.card_pos, card_modeSet_eq_Ntotal]
+    exact_mod_cast hT
+  have himg : ((modeSet T).image (fun p => b p.1 p.2.1 p.2.2)).Nonempty := hne.image _
+  exact Finset.card_pos.mpr himg
+
+/-! ## The necessary condition -/
+
+/-- **`N_van = o(N_R)` forces `X` to grow like `N_tot`.**  For every `ε > 0` and all
+sufficiently large `T`, `X(T) ≥ (1−ε)·N_tot(T)`. -/
+theorem NvanLittleO.eventually_le_Ntotal {X : ℝ → ℕ} (h : NvanLittleO X) :
+    ∀ ε : ℝ, 0 < ε → ∀ᶠ T : ℝ in atTop, (1 - ε) * (Ntotal T : ℝ) ≤ (X T : ℝ) := by
+  intro ε hε
+  rcases le_or_gt 1 ε with h1 | h1
+  · filter_upwards [eventually_Ntotal_pos] with T hT
+    have hle : 1 - ε ≤ 0 := by linarith
+    have hX : (0 : ℝ) ≤ (X T : ℝ) := Nat.cast_nonneg _
+    nlinarith
+  · -- `0 < ε < 1`: use the little-o bound with `c = ε/2`
+    have hδ : Tendsto (fun _ : ℝ => (0 : ℝ)) atTop (nhds 0) := tendsto_const_nhds
+    have ho := h (fun _ => 0) hδ
+    have hbound : ∀ᶠ T : ℝ in atTop, (Nvan T (X T) (0 : ℝ) : ℝ) ≤ (ε / 2) * (NR T : ℝ) := by
+      filter_upwards [ho.bound (by positivity : (0 : ℝ) < ε / 2)] with T hT
+      have h1 : (0 : ℝ) ≤ (Nvan T (X T) (0 : ℝ) : ℝ) := Nat.cast_nonneg _
+      have h2 : (0 : ℝ) ≤ (NR T : ℝ) := Nat.cast_nonneg _
+      simp only [Real.norm_eq_abs, abs_of_nonneg h1, abs_of_nonneg h2] at hT
+      exact hT
+    filter_upwards [hbound, eventually_ge_atTop (0 : ℝ)] with T hT hT0
+    have hcard := card_le_Nvan_add T ((X T : ℝ)) (0 : ℝ) le_rfl
+    rw [Nat.floor_natCast] at hcard
+    have hNtot : (Ntotal T : ℝ) ≤ (Nvan T ((X T : ℝ)) (0 : ℝ) : ℝ) + (X T : ℝ) := by
+      have h' : (modeSet T).card ≤ Nvan T ((X T : ℝ)) (0 : ℝ) + X T := hcard
+      exact_mod_cast h'
+    have hNR : (NR T : ℝ) ≤ (Ntotal T : ℝ) := by exact_mod_cast NR_le_Ntotal T
+    have hN0 : (0 : ℝ) ≤ (Ntotal T : ℝ) := Nat.cast_nonneg _
+    have hX0 : (0 : ℝ) ≤ (X T : ℝ) := Nat.cast_nonneg _
+    have hA : (1 - ε) ≤ 1 - ε / 2 := by linarith
+    nlinarith [hT, hNtot, hNR, hN0, hX0, hA]
+
+/-- The same necessary condition with `N_R` in place of `N_tot`; no hypothesis on collisions,
+since `N_R = N_tot` unconditionally (`NR_eq_Ntotal`). -/
+theorem NvanLittleO.eventually_le_NR {X : ℝ → ℕ} (h : NvanLittleO X) :
+    ∀ ε : ℝ, 0 < ε → ∀ᶠ T : ℝ in atTop, (1 - ε) * (NR T : ℝ) ≤ (X T : ℝ) := by
+  intro ε hε
+  filter_upwards [h.eventually_le_Ntotal ε hε] with T hT
+  rwa [NR_eq_Ntotal T]
+
+/-! ## Consequences: slow truncations refute the conjecture -/
+
+/-- **If `X` grows slower than the mode count, `N_van = o(N_R)` fails.**  For any `c < 1`
+and any truncation with `X(T) ≤ c·N_tot(T)` eventually, `N_van ≠ o(N_R)`. -/
+theorem not_NvanLittleO_of_le_Ntotal {X : ℝ → ℕ} {c : ℝ} (hc : c < 1)
+    (hX : ∀ᶠ T : ℝ in atTop, (X T : ℝ) ≤ c * (Ntotal T : ℝ)) : ¬ NvanLittleO X := by
+  intro h
+  have hε : (0 : ℝ) < (1 - c) / 2 := by linarith
+  have h1 := h.eventually_le_Ntotal _ hε
+  obtain ⟨T, ⟨h1T, hXT⟩, hpos⟩ := ((h1.and hX).and eventually_Ntotal_pos).exists
+  have hle : (1 - (1 - c) / 2) * (Ntotal T : ℝ) ≤ c * (Ntotal T : ℝ) := le_trans h1T hXT
+  nlinarith
+
+/-- **The refutation with `N_R`: no hypothesis on collisions.** -/
+theorem not_NvanLittleO_of_le_NR {X : ℝ → ℕ} {c : ℝ} (hc : c < 1)
+    (hX : ∀ᶠ T : ℝ in atTop, (X T : ℝ) ≤ c * (NR T : ℝ)) : ¬ NvanLittleO X := by
+  intro h
+  have hε : (0 : ℝ) < (1 - c) / 2 := by linarith
+  have h1 := h.eventually_le_NR ((1 - c) / 2) hε
+  have hpos : ∀ᶠ T : ℝ in atTop, 0 < (NR T : ℝ) := by
+    filter_upwards [eventually_NR_pos] with T hT
+    exact_mod_cast hT
+  obtain ⟨T, ⟨h1T, hXT⟩, hposT⟩ := ((h1.and hX).and hpos).exists
+  have hle : (1 - (1 - c) / 2) * (NR T : ℝ) ≤ c * (NR T : ℝ) := le_trans h1T hXT
+  have hA : c < 1 - (1 - c) / 2 := by linarith
+  nlinarith [hle, hposT, hA]
+
+/-! ## The distinct-frequency count: the same obstruction, without a collision hypothesis -/
+
+/-- **`N_van(F) = o(N_R)` forces `X(T) ≥ (1−ε)·N_R(T)`** for the distinct-frequency count,
+with no hypothesis on collisions: the bound `N_van(F) ≥ N_R − X` is unconditional. -/
+theorem NvanFreqLittleO.eventually_le_NR {X : ℝ → ℕ} (h : NvanFreqLittleO X) :
+    ∀ ε : ℝ, 0 < ε → ∀ᶠ T : ℝ in atTop, (1 - ε) * (NR T : ℝ) ≤ (X T : ℝ) := by
+  intro ε hε
+  rcases le_or_gt 1 ε with h1 | h1
+  · filter_upwards with T
+    have hle : 1 - ε ≤ 0 := by linarith
+    have hX : (0 : ℝ) ≤ (X T : ℝ) := Nat.cast_nonneg _
+    have hNR : (0 : ℝ) ≤ (NR T : ℝ) := Nat.cast_nonneg _
+    nlinarith
+  · have hδ : Tendsto (fun _ : ℝ => (0 : ℝ)) atTop (nhds 0) := tendsto_const_nhds
+    have ho := h (fun _ => 0) hδ
+    have hbound : ∀ᶠ T : ℝ in atTop,
+        (NvanFreq T (X T) (0 : ℝ) : ℝ) ≤ (ε / 2) * (NR T : ℝ) := by
+      filter_upwards [ho.bound (by positivity : (0 : ℝ) < ε / 2)] with T hT
+      have h1 : (0 : ℝ) ≤ (NvanFreq T (X T) (0 : ℝ) : ℝ) := Nat.cast_nonneg _
+      have h2 : (0 : ℝ) ≤ (NR T : ℝ) := Nat.cast_nonneg _
+      simp only [Real.norm_eq_abs, abs_of_nonneg h1, abs_of_nonneg h2] at hT
+      exact hT
+    filter_upwards [hbound, eventually_ge_atTop (0 : ℝ)] with T hT hT0
+    have hcard := NvanFreq_ge T ((X T : ℝ)) (0 : ℝ) le_rfl
+    rw [Nat.floor_natCast] at hcard
+    have hNR : (NR T : ℝ) ≤ (NvanFreq T ((X T : ℝ)) (0 : ℝ) : ℝ) + (X T : ℝ) := by
+      have h' : NR T ≤ NvanFreq T ((X T : ℝ)) (0 : ℝ) + X T := hcard
+      exact_mod_cast h'
+    have hN0 : (0 : ℝ) ≤ (NR T : ℝ) := Nat.cast_nonneg _
+    have hX0 : (0 : ℝ) ≤ (X T : ℝ) := Nat.cast_nonneg _
+    have hA : (1 - ε) ≤ 1 - ε / 2 := by linarith
+    nlinarith [hT, hNR, hN0, hX0, hA]
+
+/-- **A truncation slower than `N_R` refutes the conjecture**, with no collision hypothesis. -/
+theorem not_NvanFreqLittleO_of_le_NR {X : ℝ → ℕ} {c : ℝ} (hc : c < 1)
+    (hX : ∀ᶠ T : ℝ in atTop, (X T : ℝ) ≤ c * (NR T : ℝ)) : ¬ NvanFreqLittleO X := by
+  intro h
+  have hε : (0 : ℝ) < (1 - c) / 2 := by linarith
+  have h1 := h.eventually_le_NR _ hε
+  have hpos : ∀ᶠ T : ℝ in atTop, 0 < (NR T : ℝ) := by
+    filter_upwards [eventually_NR_pos] with T hT
+    exact_mod_cast hT
+  obtain ⟨T, ⟨h1T, hXT⟩, hposT⟩ := ((h1.and hX).and hpos).exists
+  have hle : (1 - (1 - c) / 2) * (NR T : ℝ) ≤ c * (NR T : ℝ) := le_trans h1T hXT
+  have hA : c < 1 - (1 - c) / 2 := by linarith
+  nlinarith [hle, hposT, hA]
+
+end FrequencyGrids

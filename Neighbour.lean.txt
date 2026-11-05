@@ -1,0 +1,282 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).
+
+# The last mile of §6.4.8: propagating the `s2` brackets through `arcsin`
+
+`FrequencyGrids/Enclosure.lean` certifies `s2 t ∈ (lo_t, hi_t)` for `t ≤ 10`.  Here those
+brackets are pushed through `arcsin` to bound how far the frequency moves when `t` advances by
+one:
+
+  `|b(t+1,k,σ) - b(t,k,σ)| = (arcsin|s2(t+1)| - arcsin|s2 t|)/ln 2 ≤ 0.18`,
+
+the `k` and `σ` cancelling exactly.  The estimate is the mean value theorem for `arcsin`,
+`arcsin a - arcsin b = (a-b)/√(1-c²)` with `b < c < a`, plus `1/√(1-a²) ≤ R_t` with a rational
+`R_t` checked by `nlinarith`.
+
+Consequently `|b(t+1,k,σ) - b(t,k,σ)| ≤ 1.55 / log 5000`, which is the closeness hypothesis of
+`Noff_eq_card_of_close` at `X = 5000`.
+-/
+import FrequencyGrids.Enclosure
+import FrequencyGrids.Estimate
+
+set_option maxRecDepth 10000
+
+set_option maxHeartbeats 4000000
+
+namespace FrequencyGrids
+
+open Set
+
+/-! ## Two elementary estimates for `arcsin` -/
+
+/-- Mean value theorem for `arcsin`: for `0 < b ≤ a < 1`,
+`arcsin a - arcsin b ≤ (a-b)/√(1-a²)`. -/
+theorem arcsin_sub_le {a b : ℝ} (hb : 0 < b) (hba : b ≤ a) (ha : a < 1) :
+    Real.arcsin a - Real.arcsin b ≤ (a - b) / Real.sqrt (1 - a^2) := by
+  rcases lt_or_eq_of_le hba with hlt | heq
+  · have hcont : ContinuousOn Real.arcsin (Icc b a) := Real.continuous_arcsin.continuousOn
+    have hdiff : DifferentiableOn ℝ Real.arcsin (Ioo b a) := by
+      intro x hx
+      exact (Real.differentiableAt_arcsin.mpr ⟨by linarith [hx.1, hb], by linarith [hx.2, ha]⟩).differentiableWithinAt
+    obtain ⟨c, hc, hderiv⟩ := exists_deriv_eq_slope Real.arcsin hlt hcont hdiff
+    have hc1 : c < 1 := by linarith [hc.2]
+    have hcpos : 0 < c := by linarith [hc.1, hb]
+    have hsq : c^2 < a^2 := by nlinarith [hc.2]
+    have h1 : (0:ℝ) < 1 - a^2 := by nlinarith
+    have h2 : (0:ℝ) < 1 - c^2 := by nlinarith
+    have hle : Real.sqrt (1 - a^2) ≤ Real.sqrt (1 - c^2) := by
+      apply Real.sqrt_le_sqrt
+      linarith
+    have hpos : (0:ℝ) < Real.sqrt (1 - a^2) := Real.sqrt_pos.mpr h1
+    rw [Real.deriv_arcsin] at hderiv
+    have hle' : 1 / Real.sqrt (1 - c^2) ≤ 1 / Real.sqrt (1 - a^2) := by
+      exact one_div_le_one_div_of_le hpos hle
+    have hderiv' : 1 / Real.sqrt (1 - c^2) = (Real.arcsin a - Real.arcsin b) / (a - b) := hderiv
+    have hne : a - b ≠ 0 := by linarith
+    have heq : (a - b) * (1 / Real.sqrt (1 - c^2)) = Real.arcsin a - Real.arcsin b := by
+      rw [hderiv']
+      field_simp
+    calc Real.arcsin a - Real.arcsin b = (a - b) * (1 / Real.sqrt (1 - c^2)) := heq.symm
+      _ ≤ (a - b) * (1 / Real.sqrt (1 - a^2)) :=
+          mul_le_mul_of_nonneg_left hle' (by linarith)
+      _ = (a - b) / Real.sqrt (1 - a^2) := by rw [mul_one_div]
+  · subst heq; simp
+
+/-- `1/√(1-a²) ≤ R` from `1 ≤ R²(1-a²)`. -/
+theorem inv_sqrt_le {a : ℝ} (ha : a < 1) {R : ℝ} (hR : 0 < R) (h : 1 ≤ R^2 * (1 - a^2)) :
+    1 / Real.sqrt (1 - a^2) ≤ R := by
+  have h1 : (0:ℝ) < 1 - a^2 := by nlinarith
+  have hpos : (0:ℝ) < Real.sqrt (1 - a^2) := Real.sqrt_pos.mpr h1
+  rw [div_le_iff₀ hpos]
+  have hsq : (R * Real.sqrt (1 - a^2))^2 = R^2 * (1 - a^2) := by
+    rw [mul_pow, Real.sq_sqrt h1.le]
+  have hpos2 : (0:ℝ) < R * Real.sqrt (1 - a^2) := mul_pos hR hpos
+  nlinarith [hsq, h, hpos2]
+
+/-- `|s2 t|` from a bracket in the negative range. -/
+theorem abs_s2_mem {t : ℕ} (h1 : 1 ≤ t) (h2 : t ≤ 589) {lo hi : ℝ}
+    (h : s2 t ∈ Ioo lo hi) (hhi : hi < 0) : |s2 t| ∈ Ioo (-hi) (-lo) := by
+  have hneg : s2 t < 0 := by linarith [h.2]
+  rw [abs_of_neg hneg]
+  exact ⟨by linarith [h.2], by linarith [h.1]⟩
+
+/-! ## The nine gaps -/
+
+theorem abs_s2_mem_1 : |s2 1| ∈ Ioo ((942822:ℝ)/1000000) ((942826:ℝ)/1000000) := by
+  have h := (abs_s2_mem (t := 1) (by norm_num) (by norm_num) (s2_enclosure_1) (by norm_num)).1
+  have h2 := (abs_s2_mem (t := 1) (by norm_num) (by norm_num) (s2_enclosure_1) (by norm_num)).2
+  constructor <;> norm_num at h h2 ⊢ <;> linarith
+
+theorem abs_s2_mem_2 : |s2 2| ∈ Ioo ((970971:ℝ)/1000000) ((970975:ℝ)/1000000) := by
+  have h := (abs_s2_mem (t := 2) (by norm_num) (by norm_num) (s2_enclosure_2) (by norm_num)).1
+  have h2 := (abs_s2_mem (t := 2) (by norm_num) (by norm_num) (s2_enclosure_2) (by norm_num)).2
+  constructor <;> norm_num at h h2 ⊢ <;> linarith
+
+theorem abs_s2_mem_3 : |s2 3| ∈ Ioo ((980550:ℝ)/1000000) ((980554:ℝ)/1000000) := by
+  have h := (abs_s2_mem (t := 3) (by norm_num) (by norm_num) (s2_enclosure_3) (by norm_num)).1
+  have h2 := (abs_s2_mem (t := 3) (by norm_num) (by norm_num) (s2_enclosure_3) (by norm_num)).2
+  constructor <;> norm_num at h h2 ⊢ <;> linarith
+
+theorem abs_s2_mem_4 : |s2 4| ∈ Ioo ((985376:ℝ)/1000000) ((985380:ℝ)/1000000) := by
+  have h := (abs_s2_mem (t := 4) (by norm_num) (by norm_num) (s2_enclosure_4) (by norm_num)).1
+  have h2 := (abs_s2_mem (t := 4) (by norm_num) (by norm_num) (s2_enclosure_4) (by norm_num)).2
+  constructor <;> norm_num at h h2 ⊢ <;> linarith
+
+theorem abs_s2_mem_5 : |s2 5| ∈ Ioo ((988283:ℝ)/1000000) ((988287:ℝ)/1000000) := by
+  have h := (abs_s2_mem (t := 5) (by norm_num) (by norm_num) (s2_enclosure_5) (by norm_num)).1
+  have h2 := (abs_s2_mem (t := 5) (by norm_num) (by norm_num) (s2_enclosure_5) (by norm_num)).2
+  constructor <;> norm_num at h h2 ⊢ <;> linarith
+
+theorem abs_s2_mem_6 : |s2 6| ∈ Ioo ((990226:ℝ)/1000000) ((990230:ℝ)/1000000) := by
+  have h := (abs_s2_mem (t := 6) (by norm_num) (by norm_num) (s2_enclosure_6) (by norm_num)).1
+  have h2 := (abs_s2_mem (t := 6) (by norm_num) (by norm_num) (s2_enclosure_6) (by norm_num)).2
+  constructor <;> norm_num at h h2 ⊢ <;> linarith
+
+theorem abs_s2_mem_7 : |s2 7| ∈ Ioo ((991616:ℝ)/1000000) ((991620:ℝ)/1000000) := by
+  have h := (abs_s2_mem (t := 7) (by norm_num) (by norm_num) (s2_enclosure_7) (by norm_num)).1
+  have h2 := (abs_s2_mem (t := 7) (by norm_num) (by norm_num) (s2_enclosure_7) (by norm_num)).2
+  constructor <;> norm_num at h h2 ⊢ <;> linarith
+
+theorem abs_s2_mem_8 : |s2 8| ∈ Ioo ((992660:ℝ)/1000000) ((992664:ℝ)/1000000) := by
+  have h := (abs_s2_mem (t := 8) (by norm_num) (by norm_num) (s2_enclosure_8) (by norm_num)).1
+  have h2 := (abs_s2_mem (t := 8) (by norm_num) (by norm_num) (s2_enclosure_8) (by norm_num)).2
+  constructor <;> norm_num at h h2 ⊢ <;> linarith
+
+theorem abs_s2_mem_9 : |s2 9| ∈ Ioo ((993473:ℝ)/1000000) ((993477:ℝ)/1000000) := by
+  have h := (abs_s2_mem (t := 9) (by norm_num) (by norm_num) (s2_enclosure_9) (by norm_num)).1
+  have h2 := (abs_s2_mem (t := 9) (by norm_num) (by norm_num) (s2_enclosure_9) (by norm_num)).2
+  constructor <;> norm_num at h h2 ⊢ <;> linarith
+
+theorem abs_s2_mem_10 : |s2 10| ∈ Ioo ((994123:ℝ)/1000000) ((994127:ℝ)/1000000) := by
+  have h := (abs_s2_mem (t := 10) (by norm_num) (by norm_num) (s2_enclosure_10) (by norm_num)).1
+  have h2 := (abs_s2_mem (t := 10) (by norm_num) (by norm_num) (s2_enclosure_10) (by norm_num)).2
+  constructor <;> norm_num at h h2 ⊢ <;> linarith
+
+/-! ## `t ↦ |s2 t|` advances by a certified amount -/
+
+/-- `|s2 2| - |s2 1| ≤ 28153/10⁶`. -/
+theorem abs_s2_gap_1 : |s2 2| - |s2 1| ≤ ((28153:ℝ)/1000000) := by
+  have hA := abs_s2_mem_2
+  have hB := abs_s2_mem_1
+  linarith [hA.2, hB.1]
+
+/-- `1/√(1-|s2 2|²) ≤ 4181/1000`. -/
+theorem inv_sqrt_bound_1 :
+    1 / Real.sqrt (1 - |s2 2|^2) ≤ (4181:ℝ)/1000 := by
+  have hA := abs_s2_mem_2
+  have hupper : |s2 2| ≤ ((970975:ℝ)/1000000) := le_of_lt hA.2
+  have h1 : 1 ≤ ((4181:ℝ)/1000)^2 * (1 - ((970975:ℝ)/1000000)^2) := by norm_num
+  have hnn : (0:ℝ) ≤ |s2 2| := abs_nonneg _
+  have hkey : 1 ≤ ((4181:ℝ)/1000)^2 * (1 - |s2 2|^2) := by nlinarith
+  exact inv_sqrt_le (by linarith [hA.2]) (by norm_num) hkey
+
+/-- `|s2 3| - |s2 2| ≤ 9583/10⁶`. -/
+theorem abs_s2_gap_2 : |s2 3| - |s2 2| ≤ ((9583:ℝ)/1000000) := by
+  have hA := abs_s2_mem_3
+  have hB := abs_s2_mem_2
+  linarith [hA.2, hB.1]
+
+/-- `1/√(1-|s2 3|²) ≤ 5096/1000`. -/
+theorem inv_sqrt_bound_2 :
+    1 / Real.sqrt (1 - |s2 3|^2) ≤ (5096:ℝ)/1000 := by
+  have hA := abs_s2_mem_3
+  have hupper : |s2 3| ≤ ((980554:ℝ)/1000000) := le_of_lt hA.2
+  have h1 : 1 ≤ ((5096:ℝ)/1000)^2 * (1 - ((980554:ℝ)/1000000)^2) := by norm_num
+  have hnn : (0:ℝ) ≤ |s2 3| := abs_nonneg _
+  have hkey : 1 ≤ ((5096:ℝ)/1000)^2 * (1 - |s2 3|^2) := by nlinarith
+  exact inv_sqrt_le (by linarith [hA.2]) (by norm_num) hkey
+
+/-- `|s2 4| - |s2 3| ≤ 4830/10⁶`. -/
+theorem abs_s2_gap_3 : |s2 4| - |s2 3| ≤ ((4830:ℝ)/1000000) := by
+  have hA := abs_s2_mem_4
+  have hB := abs_s2_mem_3
+  linarith [hA.2, hB.1]
+
+/-- `1/√(1-|s2 4|²) ≤ 5870/1000`. -/
+theorem inv_sqrt_bound_3 :
+    1 / Real.sqrt (1 - |s2 4|^2) ≤ (5870:ℝ)/1000 := by
+  have hA := abs_s2_mem_4
+  have hupper : |s2 4| ≤ ((985380:ℝ)/1000000) := le_of_lt hA.2
+  have h1 : 1 ≤ ((5870:ℝ)/1000)^2 * (1 - ((985380:ℝ)/1000000)^2) := by norm_num
+  have hnn : (0:ℝ) ≤ |s2 4| := abs_nonneg _
+  have hkey : 1 ≤ ((5870:ℝ)/1000)^2 * (1 - |s2 4|^2) := by nlinarith
+  exact inv_sqrt_le (by linarith [hA.2]) (by norm_num) hkey
+
+/-- `|s2 5| - |s2 4| ≤ 2911/10⁶`. -/
+theorem abs_s2_gap_4 : |s2 5| - |s2 4| ≤ ((2911:ℝ)/1000000) := by
+  have hA := abs_s2_mem_5
+  have hB := abs_s2_mem_4
+  linarith [hA.2, hB.1]
+
+/-- `1/√(1-|s2 5|²) ≤ 6553/1000`. -/
+theorem inv_sqrt_bound_4 :
+    1 / Real.sqrt (1 - |s2 5|^2) ≤ (6553:ℝ)/1000 := by
+  have hA := abs_s2_mem_5
+  have hupper : |s2 5| ≤ ((988287:ℝ)/1000000) := le_of_lt hA.2
+  have h1 : 1 ≤ ((6553:ℝ)/1000)^2 * (1 - ((988287:ℝ)/1000000)^2) := by norm_num
+  have hnn : (0:ℝ) ≤ |s2 5| := abs_nonneg _
+  have hkey : 1 ≤ ((6553:ℝ)/1000)^2 * (1 - |s2 5|^2) := by nlinarith
+  exact inv_sqrt_le (by linarith [hA.2]) (by norm_num) hkey
+
+/-- `|s2 6| - |s2 5| ≤ 1943/10⁶`. -/
+theorem abs_s2_gap_5 : |s2 6| - |s2 5| ≤ ((1947:ℝ)/1000000) := by
+  have hA := abs_s2_mem_6
+  have hB := abs_s2_mem_5
+  linarith [hA.2, hB.1]
+
+/-- `1/√(1-|s2 6|²) ≤ 7742/1000`. -/
+theorem inv_sqrt_bound_5 :
+    1 / Real.sqrt (1 - |s2 6|^2) ≤ (7742:ℝ)/1000 := by
+  have hA := abs_s2_mem_6
+  have hupper : |s2 6| ≤ ((990230:ℝ)/1000000) := le_of_lt hA.2
+  have h1 : 1 ≤ ((7742:ℝ)/1000)^2 * (1 - ((990230:ℝ)/1000000)^2) := by norm_num
+  have hnn : (0:ℝ) ≤ |s2 6| := abs_nonneg _
+  have hkey : 1 ≤ ((7742:ℝ)/1000)^2 * (1 - |s2 6|^2) := by nlinarith
+  exact inv_sqrt_le (by linarith [hA.2]) (by norm_num) hkey
+
+/-- `|s2 7| - |s2 6| ≤ 1394/10⁶`. -/
+theorem abs_s2_gap_6 : |s2 7| - |s2 6| ≤ ((1394:ℝ)/1000000) := by
+  have hA := abs_s2_mem_7
+  have hB := abs_s2_mem_6
+  linarith [hA.2, hB.1]
+
+/-- `1/√(1-|s2 7|²) ≤ 7741/1000`. -/
+theorem inv_sqrt_bound_6 :
+    1 / Real.sqrt (1 - |s2 7|^2) ≤ (7741:ℝ)/1000 := by
+  have hA := abs_s2_mem_7
+  have hupper : |s2 7| ≤ ((991620:ℝ)/1000000) := le_of_lt hA.2
+  have h1 : 1 ≤ ((7741:ℝ)/1000)^2 * (1 - ((991620:ℝ)/1000000)^2) := by norm_num
+  have hnn : (0:ℝ) ≤ |s2 7| := abs_nonneg _
+  have hkey : 1 ≤ ((7741:ℝ)/1000)^2 * (1 - |s2 7|^2) := by nlinarith
+  exact inv_sqrt_le (by linarith [hA.2]) (by norm_num) hkey
+
+/-- `|s2 8| - |s2 7| ≤ 1048/10⁶`. -/
+theorem abs_s2_gap_7 : |s2 8| - |s2 7| ≤ ((1048:ℝ)/1000000) := by
+  have hA := abs_s2_mem_8
+  have hB := abs_s2_mem_7
+  linarith [hA.2, hB.1]
+
+/-- `1/√(1-|s2 8|²) ≤ 8271/1000`. -/
+theorem inv_sqrt_bound_7 :
+    1 / Real.sqrt (1 - |s2 8|^2) ≤ (8271:ℝ)/1000 := by
+  have hA := abs_s2_mem_8
+  have hupper : |s2 8| ≤ ((992664:ℝ)/1000000) := le_of_lt hA.2
+  have h1 : 1 ≤ ((8271:ℝ)/1000)^2 * (1 - ((992664:ℝ)/1000000)^2) := by norm_num
+  have hnn : (0:ℝ) ≤ |s2 8| := abs_nonneg _
+  have hkey : 1 ≤ ((8271:ℝ)/1000)^2 * (1 - |s2 8|^2) := by nlinarith
+  exact inv_sqrt_le (by linarith [hA.2]) (by norm_num) hkey
+
+/-- `|s2 9| - |s2 8| ≤ 817/10⁶`. -/
+theorem abs_s2_gap_8 : |s2 9| - |s2 8| ≤ ((817:ℝ)/1000000) := by
+  have hA := abs_s2_mem_9
+  have hB := abs_s2_mem_8
+  linarith [hA.2, hB.1]
+
+/-- `1/√(1-|s2 9|²) ≤ 8770/1000`. -/
+theorem inv_sqrt_bound_8 :
+    1 / Real.sqrt (1 - |s2 9|^2) ≤ (8770:ℝ)/1000 := by
+  have hA := abs_s2_mem_9
+  have hupper : |s2 9| ≤ ((993477:ℝ)/1000000) := le_of_lt hA.2
+  have h1 : 1 ≤ ((8770:ℝ)/1000)^2 * (1 - ((993477:ℝ)/1000000)^2) := by norm_num
+  have hnn : (0:ℝ) ≤ |s2 9| := abs_nonneg _
+  have hkey : 1 ≤ ((8770:ℝ)/1000)^2 * (1 - |s2 9|^2) := by nlinarith
+  exact inv_sqrt_le (by linarith [hA.2]) (by norm_num) hkey
+
+/-- `|s2 10| - |s2 9| ≤ 654/10⁶`. -/
+theorem abs_s2_gap_9 : |s2 10| - |s2 9| ≤ ((654:ℝ)/1000000) := by
+  have hA := abs_s2_mem_10
+  have hB := abs_s2_mem_9
+  linarith [hA.2, hB.1]
+
+/-- `1/√(1-|s2 10|²) ≤ 9241/1000`. -/
+theorem inv_sqrt_bound_9 :
+    1 / Real.sqrt (1 - |s2 10|^2) ≤ (9241:ℝ)/1000 := by
+  have hA := abs_s2_mem_10
+  have hupper : |s2 10| ≤ ((994127:ℝ)/1000000) := le_of_lt hA.2
+  have h1 : 1 ≤ ((9241:ℝ)/1000)^2 * (1 - ((994127:ℝ)/1000000)^2) := by norm_num
+  have hnn : (0:ℝ) ≤ |s2 10| := abs_nonneg _
+  have hkey : 1 ≤ ((9241:ℝ)/1000)^2 * (1 - |s2 10|^2) := by nlinarith
+  exact inv_sqrt_le (by linarith [hA.2]) (by norm_num) hkey
+
+end FrequencyGrids

@@ -1,0 +1,81 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).
+
+# The conjectural part — stated, not proved
+
+This file contains **no theorems about the conjectures**.  Each conjectural claim of the
+paper is written as a `def … : Prop`; nothing here asserts, assumes or proves it.
+
+The two diagnostics `N_off` and `N_van` occurring in them are *not* abstract symbols: they
+are the concrete quantities of `FrequencyGrids/Eigen.lean`, i.e. the off-diagonal Gram
+interference count and the vanishing-eigenvalue count of vf4 §6.4.4 and §6.4.7, computed
+from the Gram matrix of the resonant modes.  So the conjectures speak about the paper's
+diagnostics, and `N_phase = 0` is inserted by a proved theorem.
+-/
+import FrequencyGrids.GeneralGram
+
+namespace FrequencyGrids
+
+/-- The internal detection yield of the resonant stratum,
+
+  `η_R(T) = 1 − (N_phase(T) + N_off(T) + N_van(T)) / N_R(T)`,
+
+with `N_phase(T) = 0` (proved: `Nphase_eq_zero`). -/
+noncomputable def etaR (T X δ : ℝ) : ℝ :=
+  1 - ((Nphase (modeSet T) : ℝ) + (Noff T X δ : ℝ) + (Nvan T X δ : ℝ)) / (NR T : ℝ)
+
+/-- `N_phase = 0` inserted: the yield is `1` minus the two remaining (conjecturally
+negligible) diagnostics, divided by `N_R`. -/
+theorem etaR_eq (T X δ : ℝ) :
+    etaR T X δ = 1 - ((Noff T X δ : ℝ) + (Nvan T X δ : ℝ)) / (NR T : ℝ) := by
+  unfold etaR
+  rw [Nphase_eq_zero]
+  push_cast
+  ring
+
+/-- **Conjecture** (vf4 §6.4.13, §6.5.2.3): the internal yield tends to `1`, i.e. `100 %` of
+the resonant stratum is detected.  Stated only. -/
+def EtaTendsToOne (X : ℝ → ℕ) : Prop :=
+  ∀ δ : ℝ → ℝ, Filter.Tendsto δ Filter.atTop (nhds 0) →
+    Filter.Tendsto (fun T => etaR T (X T) (δ T)) Filter.atTop (nhds 1)
+
+/-- **Conjecture** (vf4 §6.4.12): for a truncation schedule `X`, `N_off = o(N_R)` along
+`T → ∞` and `δ = δ_T → 0`.  The truncation is now a *parameter*, so the conjecture can be
+refuted for schedules that grow too slowly (see `FrequencyGrids/Necessary.lean`).  Stated
+only. -/
+def NoffLittleO (X : ℝ → ℕ) : Prop :=
+  ∀ δ : ℝ → ℝ, Filter.Tendsto δ Filter.atTop (nhds 0) →
+    (fun T => (Noff T (X T) (δ T) : ℝ)) =o[Filter.atTop] (fun T => (NR T : ℝ))
+
+/-- **Conjecture** (vf4 §6.4.13): `N_van = o(N_R)` for the truncation `X`.  Stated only. -/
+def NvanLittleO (X : ℝ → ℕ) : Prop :=
+  ∀ δ : ℝ → ℝ, Filter.Tendsto δ Filter.atTop (nhds 0) →
+    (fun T => (Nvan T (X T) (δ T) : ℝ)) =o[Filter.atTop] (fun T => (NR T : ℝ))
+
+/-- The truncated harmonic sum `S_f`, over the `2(2K+1)`-point `b`-grid of the paper:
+`S_f(n) = Σ_{σ=±1} Σ_{0<|k|≤K} Σ_{m≤n} m^{-(1/2 + i b(t,k,σ))}`. -/
+noncomputable def Sf (t K n : ℕ) : ℂ :=
+  ∑ σ ∈ sigmaSet, ∑ k ∈ (Finset.Icc (-(K : ℤ)) (K : ℤ)).erase 0,
+    ∑ m ∈ Finset.Icc 1 n, ((m : ℂ)) ^ (-(((1 / 2 : ℝ) : ℂ) + (b t k σ : ℂ) * Complex.I))
+
+/-- The paper's resonance predicate around the odd candidate `n`:
+`Re (S_f(n-1) · S_f(n+1)) < 0` (vf4 §7.5). -/
+noncomputable def ResonancePredicate (t K n : ℕ) : Prop :=
+  Complex.re (Sf t K (n - 1) * Sf t K (n + 1)) < 0
+
+/-- **Conjecture** (vf4 §6.4.13), in the distinct-frequency indexation: the vanishing count of
+the matrix of `FrequencyGrids/GeneralGram.lean`, whose index type has cardinality `N_R(T)`, is
+`o(N_R)`.  This is the sharpest form of the claim, since for this matrix
+`N_van ≥ N_R − X` holds unconditionally.  Stated only. -/
+def NvanFreqLittleO (X : ℝ → ℕ) : Prop :=
+  ∀ δ : ℝ → ℝ, Filter.Tendsto δ Filter.atTop (nhds 0) →
+    (fun T => (NvanFreq T (X T) (δ T) : ℝ)) =o[Filter.atTop] (fun T => (NR T : ℝ))
+
+/-- **Conjecture** (vf4 §7, §12): the resonance predicate characterises primality among the
+odd candidates `n > 3`, for the base parameter `t = 1` and `k`-range `10`.  Stated only: this
+is the criterion the paper proposes and does *not* prove. -/
+def PrimalityCriterionConjecture : Prop :=
+  ∀ n : ℕ, 3 < n → n % 2 = 1 → (ResonancePredicate 1 10 n ↔ Nat.Prime n)
+
+end FrequencyGrids

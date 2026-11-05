@@ -1,0 +1,183 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).  Completion of item 3.
+
+# When can two triplets collide?
+
+vf4 §6.4.9 asks which pairs `(t,k,σ) ≠ (t',k',σ')` can produce the *same* frequency.
+The lattice structure answers it completely: a collision forces `k = k'`, `σ = σ'` and
+`|s2(t)| = |s2(t')|`.  Hence collisions can only come from the `t`-dependence of the root,
+never from the `k`-index or the sign — the Dirac comb itself is collision-free.
+-/
+import FrequencyGrids.Counting
+
+set_option maxRecDepth 8000
+
+namespace FrequencyGrids
+
+theorem s2_abs_pos (t : ℕ) (h1 : 1 ≤ t) (h2 : t ≤ 589) : 0 < |s2 t| := by
+  have h := s2_mem t h1 h2
+  have hneg : s2 t < 0 := by linarith [h.1, h.2]
+  rw [abs_of_neg hneg]
+  linarith [h.2]
+
+/-- **Collision rigidity.**  If two triplets of the grid give the same frequency then they
+have the same sign, the same index and the same modulus of the root. -/
+theorem b_collision_structure (t t' : ℕ) (k k' : ℤ) (σ σ' : ℝ)
+    (h1 : 1 ≤ t) (h2 : t ≤ 589) (h1' : 1 ≤ t') (h2' : t' ≤ 589)
+    (hσ : σ ∈ sigmaSet) (hσ' : σ' ∈ sigmaSet)
+    (hb : b t k σ = b t' k' σ') :
+    σ = σ' ∧ |s2 t| = |s2 t'| ∧ k = k' := by
+  have hlog : (0:ℝ) < Real.log 2 := log_two_pos
+  have hπ : (0:ℝ) < Real.pi := Real.pi_pos
+  -- multiply out the definition of `b`
+  have hkey : Real.arcsin (σ * |s2 t|) - Real.arcsin (σ' * |s2 t'|)
+      = 2 * Real.pi * ((k : ℝ) - (k' : ℝ)) := by
+    have h := hb
+    rw [b_eq_affine, b_eq_affine] at h
+    have hm := congrArg (fun x => x * Real.log 2) h
+    field_simp at hm
+    linarith
+  -- each arcsine lies in `[-π/2, π/2]`
+  have hbd1 := Real.neg_pi_div_two_le_arcsin (σ * |s2 t|)
+  have hbd2 := Real.arcsin_le_pi_div_two (σ * |s2 t|)
+  have hbd3 := Real.neg_pi_div_two_le_arcsin (σ' * |s2 t'|)
+  have hbd4 := Real.arcsin_le_pi_div_two (σ' * |s2 t'|)
+  have hdiff : |Real.arcsin (σ * |s2 t|) - Real.arcsin (σ' * |s2 t'|)| ≤ Real.pi := by
+    rw [abs_le]; constructor <;> linarith
+  have hsmall : |((k : ℝ) - (k' : ℝ))| ≤ 1 / 2 := by
+    rw [hkey, abs_mul, abs_of_pos (by positivity : (0:ℝ) < 2 * Real.pi)] at hdiff
+    nlinarith
+  have hkk' : k = k' := by
+    have hcast : ((k:ℝ) - (k':ℝ)) = ((k - k' : ℤ) : ℝ) := by push_cast; ring
+    rw [hcast] at hsmall
+    have hz : k - k' = 0 := by
+      by_contra hne
+      have h1 : (1:ℤ) ≤ |k - k'| := Int.one_le_abs hne
+      have h2 : (1:ℝ) ≤ |((k - k' : ℤ) : ℝ)| := by
+        rw [← Int.cast_abs]
+        exact_mod_cast h1
+      linarith
+    omega
+  have harg : Real.arcsin (σ * |s2 t|) = Real.arcsin (σ' * |s2 t'|) := by
+    rw [hkk'] at hkey
+    linarith
+  -- bounds ensuring `arcsin` is injective on the two arguments
+  have hs1 : |s2 t| ≤ 1 := le_of_lt (abs_s2_lt_one t h1 h2)
+  have hs1' : |s2 t'| ≤ 1 := le_of_lt (abs_s2_lt_one t' h1' h2')
+  have hσ1 : σ = -1 ∨ σ = 1 := mem_sigmaSet.mp hσ
+  have hσ1' : σ' = -1 ∨ σ' = 1 := mem_sigmaSet.mp hσ'
+  have habs1 : (0:ℝ) ≤ |s2 t| := abs_nonneg _
+  have habs2 : (0:ℝ) ≤ |s2 t'| := abs_nonneg _
+  have hb1 : -1 ≤ σ * |s2 t| ∧ σ * |s2 t| ≤ 1 := by
+    rcases hσ1 with h | h <;> rw [h] <;> constructor <;> nlinarith
+  have hb2 : -1 ≤ σ' * |s2 t'| ∧ σ' * |s2 t'| ≤ 1 := by
+    rcases hσ1' with h | h <;> rw [h] <;> constructor <;> nlinarith
+  have heq : σ * |s2 t| = σ' * |s2 t'| :=
+    (Real.arcsin_inj hb1.1 hb1.2 hb2.1 hb2.2).mp harg
+  have hpos : 0 < |s2 t| := s2_abs_pos t h1 h2
+  have hpos' : 0 < |s2 t'| := s2_abs_pos t' h1' h2'
+  rcases hσ1 with h | h <;> rcases hσ1' with h' | h'
+  · refine ⟨by rw [h, h'], ?_, hkk'⟩
+    rw [h, h'] at heq
+    simpa using heq
+  · rw [h, h'] at heq
+    exfalso
+    have hneg : |s2 t| ≤ 0 := by nlinarith [habs1, habs2]
+    linarith
+  · rw [h, h'] at heq
+    exfalso
+    have hneg : |s2 t'| ≤ 0 := by nlinarith [habs1, habs2]
+    linarith
+  · refine ⟨by rw [h, h'], ?_, hkk'⟩
+    rw [h, h'] at heq
+    simpa using heq
+
+/-- A collision (two distinct triplets with the same frequency) can only arise from two
+different `t` with the same root modulus: the lattice index and sign never collide. -/
+theorem collision_imp_duplicate_phase (T : ℝ) (h : HasCollision T) :
+    ∃ t t' : ℕ, t ≠ t' ∧ |s2 t| = |s2 t'| := by
+  obtain ⟨p, hp, q, hq, hpq, hbeq⟩ := h
+  obtain ⟨hp1, hpσ, hpk, hpb⟩ := mem_modeSet.mp hp
+  obtain ⟨hq1, hqσ, hqk, hqb⟩ := mem_modeSet.mp hq
+  have ht1 : 1 ≤ p.1 := (Finset.mem_Icc.mp hp1).1
+  have ht2 : p.1 ≤ 589 := by have := (Finset.mem_Icc.mp hp1).2; omega
+  have hs1 : 1 ≤ q.1 := (Finset.mem_Icc.mp hq1).1
+  have hs2 : q.1 ≤ 589 := by have := (Finset.mem_Icc.mp hq1).2; omega
+  have hstr := b_collision_structure p.1 q.1 p.2.1 q.2.1 p.2.2 q.2.2 ht1 ht2 hs1 hs2 hpσ hqσ hbeq
+  refine ⟨p.1, q.1, ?_, hstr.2.1⟩
+  intro htt
+  exact hpq (Prod.ext htt (Prod.ext hstr.2.2 hstr.1))
+
+/-! ## Rigidity upgraded: there are no collisions
+
+Rigidity (`b_collision_structure`) reduces a collision to `σ = σ'`, `k = k'` and
+`|s₂(t)| = |s₂(t')|`.  The last equality cannot hold for `t ≠ t'`: both roots are negative, so
+`|s₂(t)| = |s₂(t')|` makes them the *same* real number `s`, and then
+`E(s,-t) = 0 = E(s,-t')` reads
+`u² = 24 t²(1-u)²(1+3u²-u³) = 24 t'²(1-u)²(1+3u²-u³)` with `u = s² ∈ (0,1)` and
+`(1-u)²(1+3u²-u³) > 0`, forcing `t² = t'²`.
+
+So collisions are impossible, `N_R = N_tot` unconditionally, and every "no collision"
+hypothesis can be dropped.  (This route needs no monotonicity of the root, hence no calculus;
+uniqueness of the root is a different question and is *not* needed here.) -/
+
+/-- **`t ↦ |s₂(t)|` is injective**: two roots with the same modulus at distinct parameters would
+be the same number and would satisfy two incompatible equations. -/
+theorem abs_s2_injective {t t' : ℕ} (h1 : 1 ≤ t) (h2 : t ≤ 589) (h1' : 1 ≤ t') (h2' : t' ≤ 589)
+    (h : |s2 t| = |s2 t'|) : t = t' := by
+  have ht := s2_mem t h1 h2
+  have ht' := s2_mem t' h1' h2'
+  have hneg : s2 t < 0 := by linarith [ht.1, ht.2]
+  have hneg' : s2 t' < 0 := by linarith [ht'.1, ht'.2]
+  have hss : s2 t = s2 t' := by
+    rw [abs_of_neg hneg, abs_of_neg hneg'] at h
+    linarith
+  set s := s2 t
+  have hs1 : s < 0 := hneg
+  have hs2 : -1 < s := by linarith [ht.1]
+  have hEt : E s (-(t:ℝ)) = 0 := s2_isRoot t h1 h2
+  have hEt' : E s (-(t':ℝ)) = 0 := by
+    rw [hss]; exact s2_isRoot t' h1' h2'
+  rw [E_eq'] at hEt hEt'
+  have hP : (0:ℝ) < (s^2 - 1)^2 * (3*s^4 - s^6 + 1) := by
+    have hspos : (0:ℝ) < s^2 := by nlinarith
+    have hsq : s^2 < 1 := by nlinarith
+    have hA : (0:ℝ) < (s^2 - 1)^2 := by
+      have : s^2 ≠ 1 := by nlinarith
+      positivity
+    have hB : (0:ℝ) < 3*s^4 - s^6 + 1 := by
+      have hfac : 3*s^4 - s^6 = s^4 * (3 - s^2) := by ring
+      have h4 : (0:ℝ) < s^4 := by
+        have h := pow_pos hspos 2
+        nlinarith
+      have h3 : (0:ℝ) < 3 - s^2 := by nlinarith
+      nlinarith [mul_pos h4 h3]
+    exact mul_pos hA hB
+  have e1 : s^4 = 24*(t:ℝ)^2*(s^2-1)^2*(3*s^4-s^6+1) := by
+    have hh := hEt; nlinarith
+  have e2 : s^4 = 24*(t':ℝ)^2*(s^2-1)^2*(3*s^4-s^6+1) := by
+    have hh := hEt'; nlinarith
+  have ht2 : (t:ℝ)^2 = (t':ℝ)^2 := by nlinarith
+  have hcast : (t:ℝ) = (t':ℝ) :=
+    by nlinarith [Nat.cast_nonneg (α := ℝ) t, Nat.cast_nonneg (α := ℝ) t']
+  exact_mod_cast hcast
+
+/-- **There are no collisions**, for every cutoff `T`. -/
+theorem not_hasCollision (T : ℝ) : ¬ HasCollision T := by
+  rintro ⟨p, hp, q, hq, hpq, hb⟩
+  obtain ⟨hp1, hp2, hp3, hp4⟩ := mem_modeSet.mp hp
+  obtain ⟨hq1, hq2, hq3, hq4⟩ := mem_modeSet.mp hq
+  have ht1 : 1 ≤ p.1 := (Finset.mem_Icc.mp hp1).1
+  have ht2 : p.1 ≤ 589 := by have := (Finset.mem_Icc.mp hp1).2; omega
+  have hs1 : 1 ≤ q.1 := (Finset.mem_Icc.mp hq1).1
+  have hs2 : q.1 ≤ 589 := by have := (Finset.mem_Icc.mp hq1).2; omega
+  have hstr := b_collision_structure p.1 q.1 p.2.1 q.2.1 p.2.2 q.2.2 ht1 ht2 hs1 hs2 hp2 hq2 hb
+  have htt : p.1 = q.1 := abs_s2_injective ht1 ht2 hs1 hs2 hstr.2.1
+  exact hpq (Prod.ext htt (Prod.ext hstr.2.2 hstr.1))
+
+/-- **`N_R = N_tot`, unconditionally.** -/
+theorem NR_eq_Ntotal (T : ℝ) : NR T = Ntotal T :=
+  (NR_eq_Ntotal_iff T).mpr (not_hasCollision T)
+
+end FrequencyGrids

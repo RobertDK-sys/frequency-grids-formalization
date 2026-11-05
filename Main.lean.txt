@@ -1,0 +1,52 @@
+/-
+Kakeya/Main.lean
+
+The planar Kakeya (Besicovitch) theorem: every set in the plane that contains a translate of the
+unit segment in every direction has Hausdorff dimension `2`.
+
+The proof runs entirely through the `Fin 2 → ℝ` model of `Kakeya.Cover`: the multi-scale covering
+bound `cover_sum_bound` is converted into a lower bound for the Hausdorff measure at every exponent
+`d < 2` (`hausdorffMeasure_ne_zero_of_cover_bound`), hence into `dimH ≥ 2`, and the `WithLp.ofLp`
+transfer returns to `Plane = EuclideanSpace ℝ (Fin 2)`.
+-/
+
+import Mathlib
+import Kakeya.Cover
+
+open scoped MeasureTheory ENNReal NNReal Topology BigOperators
+open MeasureTheory Set Topology Metric
+
+namespace Kakeya
+
+/-- **Planar Kakeya theorem.**  A set in the plane containing a translate of the unit segment in
+every direction has Hausdorff dimension `2`. -/
+theorem planar_kakeya_hausdorff_dimension (E : Set Plane) (hE : IsKakeyaSet E) :
+    dimH E = 2 := by
+  -- Move to the `Fin 2 → ℝ` model, where the tube computation lives.
+  have hF : ∀ θ : ℝ, ∃ a : Fin 2 → ℝ, seg θ a ⊆ (WithLp.ofLp '' E) :=
+    isKakeyaSet_ofLp_image hE
+  -- Positive Hausdorff measure at every exponent below `2`.
+  have hne : ∀ d : NNReal, (d : ℝ) < 2 →
+      (MeasureTheory.Measure.hausdorffMeasure (d : ℝ)) (WithLp.ofLp '' E) ≠ 0 := by
+    intro d hd
+    by_cases hd0 : d = 0
+    · -- `H^0` is the counting measure and `E` is nonempty.
+      subst hd0
+      refine ne_of_gt (lt_of_lt_of_le zero_lt_one ?_)
+      refine MeasureTheory.Measure.one_le_hausdorffMeasure_zero_of_nonempty ?_
+      obtain ⟨a, ha⟩ := hE 0
+      exact ⟨WithLp.ofLp a, ⟨a, ha ⟨0, by norm_num, by simp⟩, rfl⟩⟩
+    · -- `0 < d < 2`: the covering bound of `Kakeya.Cover`.
+      have hdpos : (0 : NNReal) < d := lt_of_le_of_ne bot_le (Ne.symm hd0)
+      have hdR : (0 : ℝ) < (d : ℝ) := by exact_mod_cast hdpos
+      have hd2 : (d : ℝ) < 2 := by exact_mod_cast hd
+      obtain ⟨c, hc, hbound⟩ := cover_sum_bound hF (d : ℝ) hdR hd2
+      exact hausdorffMeasure_ne_zero_of_cover_bound (X := Fin 2 → ℝ) hdR
+        (r := ENNReal.ofReal (1 / 16)) (by positivity) hc
+        (fun t ht hcov => hbound t ht hcov)
+  have h2 : (2 : ℝ≥0∞) ≤ dimH (WithLp.ofLp '' E) :=
+    le_two_dimH_of_hausdorffMeasure_ne_zero hne
+  rw [← dimH_ofLp_image E]
+  exact le_antisymm (dimH_le_two_fin2 (WithLp.ofLp '' E)) h2
+
+end Kakeya

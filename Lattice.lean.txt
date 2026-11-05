@@ -1,0 +1,84 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).  Unconditional part, item 2.
+
+# The Dirac-comb of `b`-frequencies
+
+  b(t, k, σ) = (arcsin(σ |s2(t)|) − 2kπ) / ln 2 ,    k ∈ ℤ,  σ ∈ {−1, +1}.
+
+The lattice step is exactly `−2π/ln 2`, independently of `t`, `k` and `σ`, and `k ↦ b(t,k,σ)`
+is injective.  Consequently the internal phase defect `N_phase` vanishes identically.
+-/
+import FrequencyGrids.Basic
+
+namespace FrequencyGrids
+
+/-- `b(t, k, σ) = (arcsin(σ |s2(t)|) − 2kπ) / ln 2`, the frequency of the dual construction. -/
+noncomputable def b (t : ℕ) (k : ℤ) (σ : ℝ) : ℝ :=
+  (Real.arcsin (σ * |s2 t|) - 2 * (k : ℝ) * Real.pi) / Real.log 2
+
+theorem log_two_pos : (0 : ℝ) < Real.log 2 := Real.log_pos (by norm_num)
+
+theorem log_two_ne_zero : (Real.log 2 : ℝ) ≠ 0 := ne_of_gt log_two_pos
+
+/-- The affine form of `b` in the index `k`. -/
+theorem b_eq_affine (t : ℕ) (σ : ℝ) (k : ℤ) :
+    b t k σ = Real.arcsin (σ * |s2 t|) / Real.log 2
+      - (2 * Real.pi / Real.log 2) * (k : ℝ) := by
+  unfold b
+  rw [sub_div]
+  congr 1
+  field_simp
+
+/-- **Constant lattice step.**  `b(t,k+1,σ) − b(t,k,σ) = −2π/ln 2`. -/
+theorem b_step (t : ℕ) (k : ℤ) (σ : ℝ) :
+    b t (k + 1) σ - b t k σ = -(2 * Real.pi / Real.log 2) := by
+  rw [b_eq_affine, b_eq_affine]
+  push_cast
+  ring
+
+/-- The lattice step does not depend on `k`, `t` or `σ` (stated for two consecutive indices
+and two arbitrary triplets). -/
+theorem b_step_uniform (t t' : ℕ) (k k' : ℤ) (σ σ' : ℝ) :
+    b t (k + 1) σ - b t k σ = b t' (k' + 1) σ' - b t' k' σ' := by
+  rw [b_step, b_step]
+
+/-- `k ↦ b(t,k,σ)` is strictly decreasing, hence injective: distinct lattice indices give
+distinct frequencies. -/
+theorem b_strictAnti (t : ℕ) (σ : ℝ) : StrictAnti fun k : ℤ => b t k σ := by
+  have hc : (0 : ℝ) < 2 * Real.pi / Real.log 2 := by
+    have := Real.pi_pos
+    positivity
+  intro k1 k2 hk
+  simp only
+  rw [b_eq_affine, b_eq_affine]
+  have hcast : (k1 : ℝ) < (k2 : ℝ) := by exact_mod_cast hk
+  nlinarith
+
+theorem b_injective (t : ℕ) (σ : ℝ) : Function.Injective fun k : ℤ => b t k σ :=
+  (b_strictAnti t σ).injective
+
+/-- The internal phase defect of the lattice at index `k`. -/
+noncomputable def phaseDefect (t : ℕ) (k : ℤ) (σ : ℝ) : ℝ :=
+  b t (k + 1) σ - b t k σ + 2 * Real.pi / Real.log 2
+
+/-- **The phase relation is exact by construction**: `δb_{t,k,σ} = 0`. -/
+theorem phaseDefect_eq_zero (t : ℕ) (k : ℤ) (σ : ℝ) : phaseDefect t k σ = 0 := by
+  unfold phaseDefect
+  rw [b_step]
+  ring
+
+/-- `N_phase`: the number of triplets in a finite truncation whose phase defect is nonzero. -/
+noncomputable def Nphase (S : Finset (ℕ × ℤ × ℝ)) : ℕ :=
+  (S.filter fun p => phaseDefect p.1 p.2.1 p.2.2 ≠ 0).card
+
+/-- **`N_phase = 0` exactly, for every truncation.** -/
+theorem Nphase_eq_zero (S : Finset (ℕ × ℤ × ℝ)) : Nphase S = 0 := by
+  have h : (S.filter fun p => phaseDefect p.1 p.2.1 p.2.2 ≠ 0) = ∅ := by
+    apply Finset.filter_false_of_mem
+    intro p _
+    simp [phaseDefect_eq_zero]
+  unfold Nphase
+  rw [h, Finset.card_empty]
+
+end FrequencyGrids

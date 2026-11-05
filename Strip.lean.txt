@@ -1,0 +1,92 @@
+/-
+Kakeya/Strip.lean
+
+The planar two-strip area estimate.  Two strips of half-width `h` whose normals meet at
+angle `ψ` intersect in a set of measure at most `2h · 2(h + |b| h)/|a|`, where `(a,b)` is the
+normal of the second strip in coordinates where the first is horizontal.  This is the
+geometric input to the tube-intersection bound (`Kakeya/Tube.lean`).
+-/
+import Mathlib
+import Kakeya.Basic
+
+open scoped MeasureTheory ENNReal NNReal Topology
+open MeasureTheory Set Topology
+
+namespace Kakeya
+
+/-- The horizontal strip `{|p 1 - t| ≤ h}` in `ℝ²`. -/
+def hstrip (h t : ℝ) : Set (Fin 2 → ℝ) := {p | |p 1 - t| ≤ h}
+
+/-- The strip `{|a * p 0 + b * p 1 - u| ≤ h}` in `ℝ²`. -/
+def astrip (a b h u : ℝ) : Set (Fin 2 → ℝ) := {p | |a * p 0 + b * p 1 - u| ≤ h}
+
+lemma astrip_neg (a b h u : ℝ) : astrip a b h u = astrip (-a) (-b) h (-u) := by
+  ext p
+  show |a * p 0 + b * p 1 - u| ≤ h ↔ |(-a) * p 0 + (-b) * p 1 - (-u)| ≤ h
+  rw [show a * p 0 + b * p 1 - u = -((-a) * p 0 + (-b) * p 1 - (-u)) by ring, abs_neg]
+
+/-- Two-strip estimate, positive-slope case. -/
+lemma volume_hstrip_inter_astrip_pos {h a b t u : ℝ} (ha : 0 < a) (hh : 0 ≤ h) :
+    volume (hstrip h t ∩ astrip a b h u)
+      ≤ ENNReal.ofReal (2 * ((h + |b| * h) / a) * (2 * h)) := by
+  have hsub : hstrip h t ∩ astrip a b h u ⊆
+      Icc ![(u - b * t - (h + |b| * h)) / a, t - h]
+          ![(u - b * t + (h + |b| * h)) / a, t + h] := by
+    intro p hp
+    obtain ⟨hp1, hp2⟩ := hp
+    have hp1' : |p 1 - t| ≤ h := hp1
+    have hp2' : |a * p 0 + b * p 1 - u| ≤ h := hp2
+    obtain ⟨hp1a, hp1b⟩ := abs_le.mp hp1'
+    obtain ⟨hp2a, hp2b⟩ := abs_le.mp hp2'
+    have hb1 : |b * p 1 - b * t| ≤ |b| * h := by
+      rw [← mul_sub, abs_mul]
+      exact mul_le_mul_of_nonneg_left (abs_le.mpr ⟨hp1a, hp1b⟩) (abs_nonneg b)
+    have htri : |a * p 0 - (u - b * t)| ≤
+        |a * p 0 + b * p 1 - u| + |b * p 1 - b * t| := by
+      have h := abs_add_le (a * p 0 + b * p 1 - u) (-(b * p 1 - b * t))
+      have he : (a * p 0 + b * p 1 - u) + (-(b * p 1 - b * t))
+          = a * p 0 - (u - b * t) := by ring
+      rwa [he, abs_neg] at h
+    have habs : |a * p 0 - (u - b * t)| ≤ h + |b| * h :=
+      le_trans htri (add_le_add hp2' hb1)
+    obtain ⟨habs1, habs2⟩ := abs_le.mp habs
+    rw [mem_Icc]
+    refine ⟨fun i => ?_, fun i => ?_⟩
+    · fin_cases i
+      · simp
+        rw [div_le_iff₀ ha, mul_comm (p 0) a]
+        linarith [habs1]
+      · simp
+        linarith [hp1a]
+    · fin_cases i
+      · simp
+        rw [le_div_iff₀ ha, mul_comm (p 0) a]
+        linarith [habs2]
+      · simp
+        linarith [hp1b]
+  refine (measure_mono hsub).trans ?_
+  rw [Real.volume_Icc_pi, Fin.prod_univ_two]
+  simp only [Fin.isValue, Matrix.cons_val_zero, Matrix.cons_val_one]
+  rw [show (u - b * t + (h + |b| * h)) / a - (u - b * t - (h + |b| * h)) / a
+        = 2 * ((h + |b| * h) / a) by ring,
+      show (t + h) - (t - h) = 2 * h by ring,
+      ← ENNReal.ofReal_mul (by have := abs_nonneg b; positivity)]
+
+/-- **Two-strip estimate.** Two strips of half-width `h`, the second with normal `(a,b)`
+in coordinates where the first is horizontal, meet in a set of measure at most
+`2h · 2(h + |b| h)/|a|`. -/
+lemma volume_hstrip_inter_astrip {h a b t u : ℝ} (ha : a ≠ 0) (hh : 0 ≤ h) :
+    volume (hstrip h t ∩ astrip a b h u)
+      ≤ ENNReal.ofReal (2 * ((h + |b| * h) / |a|) * (2 * h)) := by
+  rcases lt_or_gt_of_ne ha with hneg | hpos
+  · have hpos' : 0 < -a := neg_pos.mpr hneg
+    have key := volume_hstrip_inter_astrip_pos (t := t) (a := -a) (b := -b) (u := -u) hpos' hh
+    simp only [abs_neg] at key
+    rw [← astrip_neg a b h u] at key
+    rw [abs_of_neg hneg]
+    exact key
+  · have h := volume_hstrip_inter_astrip_pos (t := t) (a := a) (b := b) (u := u) hpos hh
+    rw [abs_of_pos hpos]
+    exact h
+
+end Kakeya

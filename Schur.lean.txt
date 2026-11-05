@@ -1,0 +1,73 @@
+/-
+Kakeya/Schur.lean
+
+The symmetric Schur test: for a symmetric nonnegative matrix with row sums at most `M`, the
+associated quadratic form is bounded by `M` times the squared Euclidean norm.  This is the
+engine that converts the two-tube intersection bound into an `L²` bound for the (smeared)
+Kakeya operator.
+-/
+import Mathlib
+
+open scoped BigOperators
+open Finset
+
+namespace Kakeya
+
+lemma two_mul_abs_mul_abs_le (x y : ℝ) : 2 * |x| * |y| ≤ x ^ 2 + y ^ 2 := by
+  have h : 0 ≤ (|x| - |y|) ^ 2 := sq_nonneg _
+  nlinarith [abs_nonneg x, abs_nonneg y, sq_abs x, sq_abs y]
+
+/-- **Symmetric Schur test.** -/
+theorem schur_test {ι : Type*} [Fintype ι] {B : ι → ι → ℝ} (hB : ∀ i j, 0 ≤ B i j)
+    (hsym : ∀ i j, B i j = B j i) {M : ℝ} (hM : ∀ i, ∑ j, B i j ≤ M)
+    (c : ι → ℝ) :
+    ∑ i, ∑ j, c i * c j * B i j ≤ M * ∑ i, c i ^ 2 := by
+  have step1 : ∑ i, ∑ j, c i * c j * B i j ≤ ∑ i, ∑ j, |c i| * |c j| * B i j := by
+    refine sum_le_sum (fun i _ => sum_le_sum (fun j _ => ?_))
+    have h : c i * c j ≤ |c i| * |c j| := by
+      calc c i * c j ≤ |c i * c j| := le_abs_self _
+        _ = |c i| * |c j| := abs_mul _ _
+    exact mul_le_mul_of_nonneg_right h (hB i j)
+  have step2 : ∑ i, ∑ j, |c i| * |c j| * B i j
+      ≤ ∑ i, ∑ j, (1 / 2 : ℝ) * (c i ^ 2 + c j ^ 2) * B i j := by
+    refine sum_le_sum (fun i _ => sum_le_sum (fun j _ => ?_))
+    have h : |c i| * |c j| ≤ (1 / 2 : ℝ) * (c i ^ 2 + c j ^ 2) := by
+      have := two_mul_abs_mul_abs_le (c i) (c j)
+      linarith
+    exact mul_le_mul_of_nonneg_right h (hB i j)
+  have hrow : ∀ i, ∑ j, (1 / 2 : ℝ) * (c i ^ 2 + c j ^ 2) * B i j
+      = (1 / 2) * (c i ^ 2 * ∑ j, B i j + ∑ j, c j ^ 2 * B i j) := by
+    intro i
+    have hpt : ∀ j, (1 / 2 : ℝ) * (c i ^ 2 + c j ^ 2) * B i j
+        = (1 / 2) * (c i ^ 2 * B i j + c j ^ 2 * B i j) := by
+      intro j; ring
+    simp_rw [hpt]
+    rw [← Finset.mul_sum, Finset.sum_add_distrib, ← Finset.mul_sum]
+  have hcol : ∑ i, ∑ j, c j ^ 2 * B i j = ∑ j, c j ^ 2 * ∑ i, B i j := by
+    rw [Finset.sum_comm]
+    simp_rw [← Finset.mul_sum]
+  have hcolM : ∀ j, ∑ i, B i j ≤ M := fun j => by
+    have h : ∑ i, B i j = ∑ i, B j i := sum_congr rfl fun i _ => hsym i j
+    rw [h]; exact hM j
+  have step3 : ∑ i, ∑ j, (1 / 2 : ℝ) * (c i ^ 2 + c j ^ 2) * B i j ≤ M * ∑ i, c i ^ 2 := by
+    have expand : ∑ i, ∑ j, (1 / 2 : ℝ) * (c i ^ 2 + c j ^ 2) * B i j
+        = (1 / 2) * ((∑ i, c i ^ 2 * ∑ j, B i j) + ∑ j, c j ^ 2 * ∑ i, B i j) := by
+      simp_rw [hrow]
+      rw [← Finset.mul_sum, Finset.sum_add_distrib, hcol]
+    rw [expand]
+    have hb1 : ∑ i, c i ^ 2 * ∑ j, B i j ≤ M * ∑ i, c i ^ 2 := by
+      calc ∑ i, c i ^ 2 * ∑ j, B i j ≤ ∑ i, c i ^ 2 * M :=
+            sum_le_sum fun i _ => mul_le_mul_of_nonneg_left (hM i) (sq_nonneg _)
+        _ = M * ∑ i, c i ^ 2 := by
+          rw [show (∑ i, c i ^ 2 * M) = ∑ i, M * c i ^ 2 from
+            sum_congr rfl fun i _ => mul_comm _ _, ← Finset.mul_sum]
+    have hb2 : ∑ j, c j ^ 2 * ∑ i, B i j ≤ M * ∑ i, c i ^ 2 := by
+      calc ∑ j, c j ^ 2 * ∑ i, B i j ≤ ∑ j, c j ^ 2 * M :=
+            sum_le_sum fun j _ => mul_le_mul_of_nonneg_left (hcolM j) (sq_nonneg _)
+        _ = M * ∑ i, c i ^ 2 := by
+          rw [show (∑ j, c j ^ 2 * M) = ∑ j, M * c j ^ 2 from
+            sum_congr rfl fun j _ => mul_comm _ _, ← Finset.mul_sum]
+    linarith
+  linarith
+
+end Kakeya

@@ -1,0 +1,121 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).
+
+# `t_max` as a parameter
+
+The construction of vf4 §6.4.2 depends on a truncation `t_max` of the `t`-lattice: the paper
+uses `t_max = 100` for the counting experiment of §6.4.3 and `t_max = 10` for the spectral
+experiment of §6.4.8.  Here the parameter is made explicit.
+
+* `latticeSetOf tmax` has cardinality `2 · tmax` (`card_latticeSetOf`);
+* `modeSetOf tmax T` is the triplet set — `t ∈ [1,tmax]`, `σ = ±1`, `k ≠ 0`, `|b| ≤ T`
+  (`mem_modeSetOf`);
+* `modeSet T = modeSetOf 100 T` definitionally (`modeSet_eq`), so the whole existing API is the
+  `t_max = 100` instance;
+* `NtotalOf tmax T = #(modeSetOf tmax T)` satisfies
+  `|NtotalOf tmax T − 2·tmax·(T log 2/π)| ≤ 6·tmax`, the constants `2·tmax` and `6·tmax` of the
+  paper's `O(T)` law.
+-/
+import FrequencyGrids.Counting
+
+set_option maxRecDepth 8000
+
+set_option linter.unusedSectionVars false
+
+set_option maxHeartbeats 2000000
+
+namespace FrequencyGrids
+
+/-- The `t`-lattice for a truncation `tmax`: `(t,σ)` with `1 ≤ t ≤ tmax` and `σ = ±1`. -/
+noncomputable def latticeSetOf (tmax : ℕ) : Finset (ℕ × ℝ) := (Finset.Icc 1 tmax) ×ˢ sigmaSet
+
+/-- **Its cardinality is `2·tmax`.** -/
+theorem card_latticeSetOf (tmax : ℕ) : (latticeSetOf tmax).card = 2 * tmax := by
+  unfold latticeSetOf
+  rw [Finset.card_product, Nat.card_Icc, card_sigmaSet]
+  have : tmax + 1 - 1 = tmax := by omega
+  rw [this]; ring
+
+/-- The `t_max = 100` instance is the `latticeSet` of the main development. -/
+theorem latticeSetOf_eq_latticeSet : latticeSetOf 100 = latticeSet := rfl
+
+/-- The resonant modes for a truncation `tmax`. -/
+noncomputable def modeSetOf (tmax : ℕ) (T : ℝ) : Finset (ℕ × ℤ × ℝ) :=
+  (latticeSetOf tmax).biUnion fun p => (kSet (phase p.1 p.2) T).image (fun k => (p.1, k, p.2))
+
+/-- **`t_max = 100` is the instance used elsewhere.** -/
+theorem modeSet_eq (T : ℝ) : modeSet T = modeSetOf 100 T := rfl
+
+/-- Membership characterization of the general triplet set. -/
+theorem mem_modeSetOf {tmax : ℕ} {T : ℝ} {p : ℕ × ℤ × ℝ} :
+    p ∈ modeSetOf tmax T ↔ p.1 ∈ Finset.Icc 1 tmax ∧ p.2.2 ∈ sigmaSet ∧ p.2.1 ≠ 0
+      ∧ |b p.1 p.2.1 p.2.2| ≤ T := by
+  unfold modeSetOf latticeSetOf
+  rw [Finset.mem_biUnion]
+  constructor
+  · rintro ⟨q, hq, hpq⟩
+    rw [Finset.mem_product] at hq
+    simp only [Finset.mem_image] at hpq
+    obtain ⟨k, hk, rfl⟩ := hpq
+    have hspec := mem_kSet_iff.mp hk
+    exact ⟨hq.1, hq.2, hspec.1, by rw [b_eq_bOf]; exact hspec.2⟩
+  · rintro ⟨h1, h2, h3, h4⟩
+    refine ⟨(p.1, p.2.2), Finset.mem_product.mpr ⟨h1, h2⟩, ?_⟩
+    rw [Finset.mem_image]
+    exact ⟨p.2.1, mem_kSet_iff.mpr ⟨h3, h4⟩, rfl⟩
+
+/-- The number of modes for a truncation `tmax`. -/
+noncomputable def NtotalOf (tmax : ℕ) (T : ℝ) : ℕ := (modeSetOf tmax T).card
+
+theorem NtotalOf_eq_Ntotal (T : ℝ) : NtotalOf 100 T = Ntotal T := rfl
+
+/-- The mode set splits over the lattices. -/
+theorem card_modeSetOf (tmax : ℕ) (T : ℝ) :
+    (modeSetOf tmax T).card = ∑ p ∈ latticeSetOf tmax, (kSet (phase p.1 p.2) T).card := by
+  have hdisj : ∀ x ∈ latticeSetOf tmax, ∀ y ∈ latticeSetOf tmax, x ≠ y →
+      Disjoint ((kSet (phase x.1 x.2) T).image (fun k => (x.1, k, x.2)))
+        ((kSet (phase y.1 y.2) T).image (fun k => (y.1, k, y.2))) := by
+    intro x _ y _ hxy
+    rw [Finset.disjoint_left]
+    intro z hzx hzy
+    simp only [Finset.mem_image] at hzx hzy
+    obtain ⟨k, _, hk⟩ := hzx
+    obtain ⟨k', _, hk'⟩ := hzy
+    have heq : (x.1, k, x.2) = (y.1, k', y.2) := hk.trans hk'.symm
+    simp only [Prod.mk.injEq] at heq
+    exact hxy (Prod.ext_iff.mpr ⟨heq.1, heq.2.2⟩)
+  unfold modeSetOf
+  rw [Finset.card_biUnion hdisj]
+  apply Finset.sum_congr rfl
+  intro p _
+  have hinj : Set.InjOn (fun k : ℤ => (p.1, k, p.2)) ↑(kSet (phase p.1 p.2) T) := by
+    intro a _ b _ h
+    simpa using h
+  exact Finset.card_image_of_injOn hinj
+
+/-- **`N_tot(tmax, T) = 2·tmax·T log 2/π + O(tmax)`**, with the explicit error `6·tmax`. -/
+theorem NtotalOf_bounds (tmax : ℕ) (T : ℝ) (hT : 0 ≤ T) :
+    |((NtotalOf tmax T : ℝ) - 2 * tmax * (T * Real.log 2 / Real.pi))| ≤ 6 * tmax := by
+  have hterm : ∀ p ∈ latticeSetOf tmax,
+      |((kSet (phase p.1 p.2) T).card : ℝ) - T * Real.log 2 / Real.pi| ≤ 3 :=
+    fun p _ => card_kSet_bounds _ T hT
+  have hconst : ∀ c : ℝ, (∑ _p ∈ latticeSetOf tmax, c) = 2 * tmax * c := by
+    intro c
+    rw [Finset.sum_const, card_latticeSetOf, nsmul_eq_mul]
+    push_cast
+    ring
+  have hsum : ((NtotalOf tmax T : ℝ))
+      = ∑ p ∈ latticeSetOf tmax, ((kSet (phase p.1 p.2) T).card : ℝ) := by
+    unfold NtotalOf
+    rw [card_modeSetOf, Nat.cast_sum]
+  rw [hsum, abs_le]
+  constructor
+  · have h := Finset.sum_le_sum fun p hp => (abs_le.mp (hterm p hp)).1
+    rw [Finset.sum_sub_distrib] at h
+    nlinarith [hconst (-3), hconst (T * Real.log 2 / Real.pi)]
+  · have h := Finset.sum_le_sum fun p hp => (abs_le.mp (hterm p hp)).2
+    rw [Finset.sum_sub_distrib] at h
+    nlinarith [hconst 3, hconst (T * Real.log 2 / Real.pi)]
+
+end FrequencyGrids

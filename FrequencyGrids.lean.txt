@@ -1,0 +1,35 @@
+/-
+Algebraic Frequency Grids, Harmonic Resonances and Primality (vf4): the unconditional part.
+
+  FrequencyGrids.Basic       — the degree-6 characteristic equation and the root `s2(t)` (item 1)
+  FrequencyGrids.Lattice     — the constant-step `b`-lattice and `N_phase = 0`    (item 2)
+  FrequencyGrids.Uniqueness  — strict monotonicity of `f`, uniqueness of `s2(t)`, `t ↦ |s2 t|` increasing
+  FrequencyGrids.Enclosure   — certified rational enclosures of `s2(1)`, …, `s2(10)`
+  FrequencyGrids.Neighbour   — the brackets pushed through `arcsin`: frequency gaps for `t → t+1`
+  FrequencyGrids.Counting    — `O(T)` counting of the resonant stratum, `N_R`      (item 3)
+  FrequencyGrids.Structure   — collision rigidity: collisions only from `t ↦ |s2 t|`  (item 3)
+  FrequencyGrids.Parametric  — `t_max` as a parameter (`2·tmax`, `6·tmax`), `t_max = 100` instance
+  FrequencyGrids.Resonance   — Gram off-diagonal bound, `Re S_f` invariance        (items 4, 5)
+  FrequencyGrids.Congruence  — primes are `±1 mod 6`; converse fails               (item 6)
+  FrequencyGrids.Eigen       — the Gram matrix, its spectrum, `N_off` and `N_van`
+  FrequencyGrids.GeneralGram — arbitrary frequency families, `G = E Eᴴ`, and the
+                               distinct-frequency lattice (`card ι = N_R`)
+  FrequencyGrids.Estimate    — explicit lower bounds: `‖G_ij‖ ≥ H_⌊X⌋/50` for close modes
+  FrequencyGrids.Conjectures — the conjectural claims, stated as `def … : Prop` only
+  FrequencyGrids.Necessary   — the growth `X ≥ (1-ε)N_tot` forced by `N_van = o(N_R)`
+-/
+import FrequencyGrids.Basic
+import FrequencyGrids.Lattice
+import FrequencyGrids.Uniqueness
+import FrequencyGrids.Enclosure
+import FrequencyGrids.Neighbour
+import FrequencyGrids.Counting
+import FrequencyGrids.Parametric
+import FrequencyGrids.Structure
+import FrequencyGrids.Resonance
+import FrequencyGrids.Eigen
+import FrequencyGrids.GeneralGram
+import FrequencyGrids.Estimate
+import FrequencyGrids.Congruence
+import FrequencyGrids.Conjectures
+import FrequencyGrids.Necessary

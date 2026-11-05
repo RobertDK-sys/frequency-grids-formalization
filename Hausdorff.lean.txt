@@ -1,0 +1,117 @@
+/-
+Kakeya/Hausdorff.lean
+
+Layer C: from a quantitative covering bound for a Kakeya set to its Hausdorff dimension.
+
+The quantitative core of the Córdoba route (in `Kakeya.Cover`) furnishes, for every `d < 2`, a
+positive constant `c` such that *every* small-diameter countable cover of `E` satisfies
+`∑ₙ (diam Uₙ) ^ d ≥ c`.  This file converts such a statement into `dimH E ≥ 2`, and relates the
+`Fin 2 → ℝ` model used by the tube computation to the `Plane = EuclideanSpace ℝ (Fin 2)` model
+of `Kakeya.Basic`.
+-/
+
+import Mathlib
+import Kakeya.Basic
+
+open scoped MeasureTheory ENNReal NNReal Topology
+open MeasureTheory Set Topology Metric
+
+namespace Kakeya
+
+/-! ### A covering bound implies a positive lower bound for the Hausdorff measure -/
+
+/-- **Covering bound ⟹ Hausdorff measure does not vanish.**  If every countable cover of `E` by
+sets of diameter at most a fixed `r > 0` has `d`-dimensional diameter sum at least `c ≠ 0`, then
+the `d`-dimensional Hausdorff measure of `E` is nonzero. -/
+theorem hausdorffMeasure_ne_zero_of_cover_bound {X : Type*} [EMetricSpace X]
+    [MeasurableSpace X] [BorelSpace X] {E : Set X} {d : ℝ} (hd : 0 < d) {c r : ℝ≥0∞}
+    (hr : 0 < r) (hc : c ≠ 0)
+    (h : ∀ t : ℕ → Set X, (∀ n, Metric.ediam (t n) ≤ r) → E ⊆ ⋃ n, t n →
+      c ≤ ∑' n, (Metric.ediam (t n)) ^ d) :
+    (MeasureTheory.Measure.hausdorffMeasure d) E ≠ 0 := by
+  intro hzero
+  rw [MeasureTheory.Measure.hausdorffMeasure_apply d E] at hzero
+  have hCr : c ≤ ⨅ (t : ℕ → Set X), ⨅ (_ : E ⊆ ⋃ n, t n),
+      ⨅ (_ : ∀ n, Metric.ediam (t n) ≤ r),
+        ∑' n, ⨆ _ : (t n).Nonempty, Metric.ediam (t n) ^ d := by
+    refine le_iInf fun t => le_iInf fun ht => le_iInf fun hr' => ?_
+    refine le_trans (h t hr' ht) (ENNReal.tsum_le_tsum fun n => ?_)
+    by_cases hn : (t n).Nonempty
+    · rw [iSup_pos hn]
+    · have hne : t n = ∅ := not_nonempty_iff_eq_empty.mp hn
+      rw [hne, Metric.ediam_empty, ENNReal.zero_rpow_of_pos hd]
+      exact bot_le
+  have hle : (⨅ (t : ℕ → Set X), ⨅ (_ : E ⊆ ⋃ n, t n),
+      ⨅ (_ : ∀ n, Metric.ediam (t n) ≤ r),
+        ∑' n, ⨆ _ : (t n).Nonempty, Metric.ediam (t n) ^ d) ≤ 0 := by
+    rw [← hzero]
+    exact le_iSup_of_le r (le_iSup_of_le hr le_rfl)
+  exact hc (le_zero_iff.mp (hCr.trans hle))
+
+/-- **A positive Hausdorff measure at every exponent below `2` gives dimension at least `2`.** -/
+theorem le_two_dimH_of_hausdorffMeasure_ne_zero {X : Type*} [EMetricSpace X]
+    [MeasurableSpace X] [BorelSpace X] {E : Set X}
+    (h : ∀ d : NNReal, (d : ℝ) < 2 → (MeasureTheory.Measure.hausdorffMeasure (d : ℝ)) E ≠ 0) :
+    (2 : ℝ≥0∞) ≤ dimH E := by
+  by_contra hcon
+  rw [not_le] at hcon
+  obtain ⟨d, hd1, hd2⟩ := ENNReal.lt_iff_exists_nnreal_btwn.mp hcon
+  have hdR : (d : ℝ) < 2 := by exact_mod_cast hd2
+  have hdle : (d : ℝ≥0∞) ≤ dimH E := le_dimH_of_hausdorffMeasure_ne_zero (h d hdR)
+  exact absurd (lt_of_lt_of_le hd1 hdle) (lt_irrefl _)
+
+/-- The Hausdorff dimension of a subset of `Fin 2 → ℝ` is at most `2`. -/
+theorem dimH_le_two_fin2 (E : Set (Fin 2 → ℝ)) : dimH E ≤ (2 : ℝ≥0∞) := by
+  have h : dimH (univ : Set (Fin 2 → ℝ)) = (2 : ℝ≥0∞) := by
+    rw [Real.dimH_of_nonempty_interior (s := (univ : Set (Fin 2 → ℝ)))
+      (by rw [interior_univ]; exact univ_nonempty)]
+    simp
+  exact (dimH_mono (subset_univ E)).trans h.le
+
+/-! ### The two models of the plane
+
+`Kakeya.Basic` works on `Plane = EuclideanSpace ℝ (Fin 2) = WithLp 2 (Fin 2 → ℝ)`, while the tube
+computation of `Kakeya.Tube` works on the underlying `Fin 2 → ℝ` with the sup norm.  The map
+`WithLp.ofLp` is one-Lipschitz with a `√2`-antilipschitz inverse, so it preserves Hausdorff
+dimension and does not increase the Hausdorff measure. -/
+
+lemma lipschitzWith_ofLp : LipschitzWith 1 (WithLp.ofLp : Plane → (Fin 2 → ℝ)) :=
+  PiLp.lipschitzWith_ofLp 2 (fun _ : Fin 2 => ℝ)
+
+/-- The underlying-function map preserves Hausdorff dimension. -/
+lemma dimH_ofLp_image (s : Set Plane) : dimH (WithLp.ofLp '' s) = dimH s :=
+  le_antisymm (LipschitzWith.dimH_image_le lipschitzWith_ofLp s)
+    (AntilipschitzWith.le_dimH_image (PiLp.antilipschitzWith_ofLp 2 (fun _ : Fin 2 => ℝ)) s)
+
+/-- The underlying-function map does not increase the Hausdorff measure. -/
+lemma hausdorffMeasure_ofLp_image_le {d : ℝ} (hd : 0 ≤ d) (s : Set Plane) :
+    (MeasureTheory.Measure.hausdorffMeasure d) (WithLp.ofLp '' s) ≤
+      (MeasureTheory.Measure.hausdorffMeasure d) s := by
+  have h := LipschitzWith.hausdorffMeasure_image_le lipschitzWith_ofLp hd s
+  simpa using h
+
+/-! ### The unit segments of `Fin 2 → ℝ` and the transfer of the Kakeya condition -/
+
+/-- The unit vector of direction `θ`, as an element of `Fin 2 → ℝ`. -/
+noncomputable def dirFi2 (θ : ℝ) : Fin 2 → ℝ := ![Real.cos θ, Real.sin θ]
+
+/-- The closed unit segment of direction `θ`, centred at `a`, in `Fin 2 → ℝ`. -/
+def seg (θ : ℝ) (a : Fin 2 → ℝ) : Set (Fin 2 → ℝ) :=
+  {x | ∃ t ∈ Icc (-(1 / 2 : ℝ)) (1 / 2), x = a + t • dirFi2 θ}
+
+lemma ofLp_dir (θ : ℝ) : (dir θ).ofLp = dirFi2 θ := by
+  ext i; exact dir_ofLp θ i
+
+/-- A Kakeya set in `Plane` gives a Kakeya set in the `Fin 2 → ℝ` model. -/
+lemma isKakeyaSet_ofLp_image {E : Set Plane} (hE : IsKakeyaSet E) :
+    ∀ θ : ℝ, ∃ a : Fin 2 → ℝ, seg θ a ⊆ (WithLp.ofLp '' E) := by
+  intro θ
+  obtain ⟨A, hA⟩ := hE θ
+  refine ⟨A.ofLp, ?_⟩
+  rintro x ⟨t, ht, rfl⟩
+  refine ⟨A + t • dir θ, hA ⟨t, ht, rfl⟩, ?_⟩
+  ext i
+  simp only [WithLp.ofLp_add, WithLp.ofLp_smul, Pi.add_apply, Pi.smul_apply, smul_eq_mul,
+    ofLp_dir]
+
+end Kakeya

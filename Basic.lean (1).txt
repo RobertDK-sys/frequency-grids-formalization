@@ -1,0 +1,217 @@
+/-
+Copyright: formalization accompanying "Algebraic Frequency Grids, Harmonic Resonances
+and Primality" (vf4).  Unconditional part, item 1.
+
+# The degree-6 characteristic equation
+
+The paper's equation is
+
+  E(s, k3) = |8 s^6 - 24 s^4 + 24 s^2 - 8|^(2/3) * (24 k3^2 s^6 - 72 k3^2 s^4 - 24 k3^2)
+             + 4 s^4 = 0 ,
+
+solved for the real root `s2(t)` in `(-0.9999, -0.0001)` with `k3 = -t`.  The key algebraic
+observation (used throughout) is
+
+  8 s^6 - 24 s^4 + 24 s^2 - 8 = 8 (s^2 - 1)^3 ,
+  |8 v^3|^(2/3) = 4 v^2 ,
+
+so `E` is in fact a *polynomial* in `s`:
+
+  E(s, k3) = 4 * (s^4 + 24 k3^2 (s^2-1)^2 (s^6 - 3 s^4 - 1)) .
+-/
+import Mathlib
+
+namespace FrequencyGrids
+
+open Set
+
+/-- The degree-6 characteristic polynomial, `8 s ^ 6 - 24 s ^ 4 + 24 s ^ 2 - 8`. -/
+def charPoly (s : ℝ) : ℝ := 8 * s ^ 6 - 24 * s ^ 4 + 24 * s ^ 2 - 8
+
+/-- `charPoly` is a perfect cube; this is what makes the `2/3` power algebraic. -/
+theorem charPoly_eq (s : ℝ) : charPoly s = 8 * (s ^ 2 - 1) ^ 3 := by
+  unfold charPoly; ring
+
+/-- `|8 v^3|^(2/3) = 4 v^2`. -/
+theorem abs_cube_rpow (v : ℝ) : |8 * v ^ 3| ^ ((2 : ℝ) / 3) = 4 * v ^ 2 := by
+  have h2 : (8 : ℝ) = 2 ^ 3 := by norm_num
+  have hv : (0 : ℝ) ≤ |v| := abs_nonneg v
+  have step1 : |8 * v ^ 3| = 8 * |v| ^ 3 := by
+    rw [abs_mul, abs_of_nonneg (by norm_num : (0 : ℝ) ≤ 8), abs_pow]
+  rw [step1, Real.mul_rpow (by norm_num) (by positivity)]
+  have h8 : (8 : ℝ) ^ ((2 : ℝ) / 3) = 4 := by
+    conv_lhs => rw [h2]
+    rw [← Real.rpow_natCast_mul (by norm_num : (0 : ℝ) ≤ 2) 3 (2 / 3)]
+    norm_num
+  rw [h8]
+  have hv3 : ((|v| ^ 3 : ℝ)) = |v| ^ (3 : ℝ) := (Real.rpow_natCast |v| 3).symm
+  rw [hv3, ← Real.rpow_mul hv (3 : ℝ) (2 / 3)]
+  have h32 : (3 : ℝ) * (2 / 3) = 2 := by norm_num
+  rw [h32, Real.rpow_two, pow_two, pow_two, abs_mul_abs_self]
+
+/-- The characteristic equation of the paper (vf4, §6.5.2.1 and §7.2). -/
+noncomputable def E (s k3 : ℝ) : ℝ :=
+  |charPoly s| ^ ((2 : ℝ) / 3) * (24 * k3 ^ 2 * s ^ 6 - 72 * k3 ^ 2 * s ^ 4 - 24 * k3 ^ 2)
+    + 4 * s ^ 4
+
+/-- `E` is a genuine polynomial in `s`: the fractional power cancels the cube. -/
+theorem E_eq (s k3 : ℝ) :
+    E s k3 = 4 * (s ^ 4 + 24 * k3 ^ 2 * (s ^ 2 - 1) ^ 2 * (s ^ 6 - 3 * s ^ 4 - 1)) := by
+  unfold E
+  rw [charPoly_eq]
+  have h := abs_cube_rpow (s ^ 2 - 1)
+  rw [h]
+  ring
+
+/-- The same identity in the sign-carrying form used for the sign analysis: with
+`u = s^2` and `g(u) = 3u^2 - u^3 + 1`, one has `E = 4(u^2 - 24 k3^2 (1-u)^2 g(u))`. -/
+theorem E_eq' (s k3 : ℝ) :
+    E s k3 = 4 * (s ^ 4 - 24 * k3 ^ 2 * (s ^ 2 - 1) ^ 2 * (3 * s ^ 4 - s ^ 6 + 1)) := by
+  rw [E_eq]; ring
+
+theorem continuous_E (k3 : ℝ) : Continuous fun s => E s k3 := by
+  have : (fun s => E s k3)
+      = fun s => 4 * (s ^ 4 + 24 * k3 ^ 2 * (s ^ 2 - 1) ^ 2 * (s ^ 6 - 3 * s ^ 4 - 1)) := by
+    funext s; exact E_eq s k3
+  rw [this]; fun_prop
+
+/-- The left endpoint `s = -1`: `E(-1,k3) = 4` for every `k3`. -/
+theorem E_neg_one (k3 : ℝ) : E (-1) k3 = 4 := by
+  rw [E_eq]; norm_num
+
+/-- The right endpoint `s = 0`: `E(0,k3) = -96 k3^2`. -/
+theorem E_zero (k3 : ℝ) : E 0 k3 = -(96 * k3 ^ 2) := by
+  rw [E_eq]; ring
+
+/-! ## Existence of the root `s2(t)`
+
+For every `k3 ≠ 0` the equation `E(·,k3) = 0` has a root in `(-1,0)`; this is the
+unconditional form of the paper's root-finding step (`brentq` on `[-0.9999,-0.0001]`). -/
+
+theorem exists_root_unit (k3 : ℝ) (hk3 : k3 ≠ 0) :
+    ∃ s ∈ Ioo (-1 : ℝ) 0, E s k3 = 0 := by
+  have hcont : ContinuousOn (fun s => E s k3) (Icc (-1 : ℝ) 0) :=
+    (continuous_E k3).continuousOn
+  have h0 : E 0 k3 < 0 := by
+    rw [E_zero]
+    have : (0:ℝ) < k3 ^ 2 := by positivity
+    nlinarith
+  have h1 : 0 < E (-1) k3 := by rw [E_neg_one]; norm_num
+  have hsub := intermediate_value_Ioo' (a := (-1:ℝ)) (b := 0) (by norm_num) hcont
+  have hmem : (0 : ℝ) ∈ Ioo (E 0 k3) (E (-1) k3) := ⟨h0, h1⟩
+  obtain ⟨s, hs, hEs⟩ := hsub hmem
+  exact ⟨s, hs, hEs⟩
+
+/-! ### The narrow interval `(-0.9999, -0.0001)`
+
+The paper's root finder searches in `[-0.9999, -0.0001]`.  Writing `u = s^2` and
+`g(u) = 3u^2 - u^3 + 1 > 0`, the sign form is
+
+  E(s,k3) = 4 (u^2 - 24 k3^2 (1-u)^2 g(u)) .
+
+Hence `E(-0.9999, -t) > 0` exactly while `t^2 < u_0^2 / (24 (1-u_0)^2 g(u_0))`, whose square
+root is `589.2261...`, and `E(-0.0001,-t) < 0` for all `t ≥ 1`.  So the bracketing interval of
+the paper has a genuine sign change for `1 ≤ t ≤ 589` and none for `t ≥ 590`. -/
+
+/-- At the right endpoint the value is negative for every `t ≥ 1`. -/
+theorem E_right_neg (t : ℕ) (ht : 1 ≤ t) :
+    E ((-1 : ℝ) / 10000) (-(t : ℝ)) < 0 := by
+  rw [E_eq']
+  have ht1 : (1 : ℝ) ≤ t := by exact_mod_cast ht
+  have hbr : (0:ℝ) < (3 * ((-1:ℝ)/10000) ^ 4 - ((-1:ℝ)/10000) ^ 6 + 1) := by norm_num
+  have hsq : (0:ℝ) < (((-1:ℝ)/10000) ^ 2 - 1) ^ 2 := by
+    have h : ((-1:ℝ)/10000) ^ 2 - 1 ≠ 0 := by norm_num
+    positivity
+  have hAB : (0:ℝ) ≤ (((-1:ℝ)/10000) ^ 2 - 1) ^ 2
+      * (3 * ((-1:ℝ)/10000) ^ 4 - ((-1:ℝ)/10000) ^ 6 + 1) := le_of_lt (mul_pos hsq hbr)
+  have h24 : 24 * (1:ℝ)^2 ≤ 24 * (t:ℝ)^2 := by
+    have h : (0:ℝ) ≤ (t:ℝ)^2 := by positivity
+    nlinarith
+  have hmono := mul_le_mul_of_nonneg_right h24 hAB
+  have hnum : (((-1:ℝ)/10000) ^ 4) < 24 * (1:ℝ)^2
+      * ((((-1:ℝ)/10000) ^ 2 - 1) ^ 2
+        * (3 * ((-1:ℝ)/10000) ^ 4 - ((-1:ℝ)/10000) ^ 6 + 1)) := by norm_num
+  nlinarith
+
+/-- At the left endpoint the value is positive as long as `t ≤ 589`. -/
+theorem E_left_pos (t : ℕ) (ht : t ≤ 589) :
+    0 < E ((-9999 : ℝ) / 10000) (-(t : ℝ)) := by
+  rw [E_eq']
+  have ht0 : (0:ℝ) ≤ t := Nat.cast_nonneg t
+  have htle : (t:ℝ) ≤ 589 := by exact_mod_cast ht
+  have ht2 : ((t:ℝ)) ^ 2 ≤ (589:ℝ) ^ 2 := pow_le_pow_left₀ ht0 htle 2
+  have hbr : (0:ℝ) < (3 * ((-9999:ℝ)/10000) ^ 4 - ((-9999:ℝ)/10000) ^ 6 + 1) := by norm_num
+  have hsq : (0:ℝ) < (((-9999:ℝ)/10000) ^ 2 - 1) ^ 2 := by
+    have h : ((-9999:ℝ)/10000) ^ 2 - 1 ≠ 0 := by norm_num
+    positivity
+  have hAB : (0:ℝ) ≤ (((-9999:ℝ)/10000) ^ 2 - 1) ^ 2
+      * (3 * ((-9999:ℝ)/10000) ^ 4 - ((-9999:ℝ)/10000) ^ 6 + 1) := le_of_lt (mul_pos hsq hbr)
+  have h24 : 24 * (t:ℝ)^2 ≤ 24 * (589:ℝ)^2 := by linarith
+  have hmono := mul_le_mul_of_nonneg_right h24 hAB
+  have hnum : 24 * (589:ℝ)^2
+      * ((((-9999:ℝ)/10000) ^ 2 - 1) ^ 2
+        * (3 * ((-9999:ℝ)/10000) ^ 4 - ((-9999:ℝ)/10000) ^ 6 + 1))
+      < (((-9999:ℝ)/10000) ^ 4) := by norm_num
+  nlinarith
+
+/-- At the left endpoint the value is *negative* once `t ≥ 590`: the sign change of the
+paper's bracketing interval fails from there on. -/
+theorem E_left_neg (t : ℕ) (ht : 590 ≤ t) :
+    E ((-9999 : ℝ) / 10000) (-(t : ℝ)) < 0 := by
+  rw [E_eq']
+  have ht0 : (590:ℝ) ≤ t := by exact_mod_cast ht
+  have hbr : (0:ℝ) < (3 * ((-9999:ℝ)/10000) ^ 4 - ((-9999:ℝ)/10000) ^ 6 + 1) := by norm_num
+  have hsq : (0:ℝ) < (((-9999:ℝ)/10000) ^ 2 - 1) ^ 2 := by
+    have h : ((-9999:ℝ)/10000) ^ 2 - 1 ≠ 0 := by norm_num
+    positivity
+  have hAB : (0:ℝ) ≤ (((-9999:ℝ)/10000) ^ 2 - 1) ^ 2
+      * (3 * ((-9999:ℝ)/10000) ^ 4 - ((-9999:ℝ)/10000) ^ 6 + 1) := le_of_lt (mul_pos hsq hbr)
+  have h590 : (0:ℝ) ≤ t := by linarith
+  have h24 : 24 * (590:ℝ)^2 ≤ 24 * (t:ℝ)^2 := by nlinarith
+  have hmono := mul_le_mul_of_nonneg_right h24 hAB
+  have hnum : (((-9999:ℝ)/10000) ^ 4) < 24 * (590:ℝ)^2
+      * ((((-9999:ℝ)/10000) ^ 2 - 1) ^ 2
+        * (3 * ((-9999:ℝ)/10000) ^ 4 - ((-9999:ℝ)/10000) ^ 6 + 1)) := by norm_num
+  nlinarith
+
+/-- The paper's root `s2(t)`: for `1 ≤ t ≤ 589` it lies in `(-0.9999, -0.0001)` and solves
+`E(s2(t), -t) = 0`.  Outside that range it is set to `0` (it is never used there). -/
+noncomputable def s2 (t : ℕ) : ℝ := by
+  classical
+  exact if h : ∃ s ∈ Ioo ((-9999 : ℝ) / 10000) ((-1 : ℝ) / 10000), E s (-(t : ℝ)) = 0
+    then Classical.choose h else 0
+
+theorem exists_root_grid (t : ℕ) (h1 : 1 ≤ t) (h2 : t ≤ 589) :
+    ∃ s ∈ Ioo ((-9999 : ℝ) / 10000) ((-1 : ℝ) / 10000), E s (-(t : ℝ)) = 0 := by
+  have hcont : ContinuousOn (fun s => E s (-(t : ℝ)))
+      (Icc ((-9999 : ℝ) / 10000) ((-1 : ℝ) / 10000)) := (continuous_E _).continuousOn
+  have hleft := E_left_pos t h2
+  have hright := E_right_neg t h1
+  have hsub := intermediate_value_Ioo' (a := ((-9999:ℝ)/10000)) (b := ((-1:ℝ)/10000))
+    (by norm_num) hcont
+  have hmem : (0 : ℝ) ∈ Ioo (E ((-1 : ℝ) / 10000) (-(t:ℝ)))
+      (E ((-9999 : ℝ) / 10000) (-(t:ℝ))) := ⟨hright, hleft⟩
+  exact hsub hmem
+
+theorem s2_spec (t : ℕ) (h1 : 1 ≤ t) (h2 : t ≤ 589) :
+    s2 t ∈ Ioo ((-9999 : ℝ) / 10000) ((-1 : ℝ) / 10000) ∧ E (s2 t) (-(t : ℝ)) = 0 := by
+  have h : ∃ s ∈ Ioo ((-9999 : ℝ) / 10000) ((-1 : ℝ) / 10000), E s (-(t : ℝ)) = 0 :=
+    exists_root_grid t h1 h2
+  unfold s2
+  rw [dif_pos h]
+  exact Classical.choose_spec h
+
+theorem s2_mem (t : ℕ) (h1 : 1 ≤ t) (h2 : t ≤ 589) :
+    s2 t ∈ Ioo ((-9999 : ℝ) / 10000) ((-1 : ℝ) / 10000) := (s2_spec t h1 h2).1
+
+theorem s2_isRoot (t : ℕ) (h1 : 1 ≤ t) (h2 : t ≤ 589) : E (s2 t) (-(t : ℝ)) = 0 :=
+  (s2_spec t h1 h2).2
+
+/-- In particular `|s2 t| < 1`, so that `arcsin` is defined on `σ |s2 t|`. -/
+theorem abs_s2_lt_one (t : ℕ) (h1 : 1 ≤ t) (h2 : t ≤ 589) : |s2 t| < 1 := by
+  have h := s2_mem t h1 h2
+  have h3 : s2 t < 0 := by linarith [h.1, h.2]
+  rw [abs_of_neg h3]
+  linarith [h.1]
+
+end FrequencyGrids
