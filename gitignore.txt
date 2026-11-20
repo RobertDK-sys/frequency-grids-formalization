@@ -1,0 +1,20 @@
+# Lean build artefacts
+.lake/
+*.olean
+*.ilean
+*.c
+*.trace
+
+# LaTeX build artefacts
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+
+# scratch space (temporary files, never committed)
+.scratch/
+
+# git bundles (transfer artefacts, not sources)
+*.bundle

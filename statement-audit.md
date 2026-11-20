@@ -77,3 +77,39 @@ every theorem below is `sorry`-free and rests only on `propext`, `Classical.choi
 124 theorems yields only `propext`, `Classical.choice`, `Quot.sound`.  The two genuine uses of
 `Classical.choice` are the root selector `s2` and Mathlib's spectral theorem; the first is
 rendered choice-independent by the uniqueness result of Phase C.
+
+## F. The lattice has gap bands (added after the vf4 §6.4.8 exchange)
+
+`b(t,k,σ) = (arcsin(σ|s₂ t|) − 2kπ)/ln 2`, `|arcsin| ≤ π/2`, and `k ≠ 0` forces `|2kπ| ≥ 2π`,
+so `|b| ≥ 3π/(2 ln 2) = 6.7985…` (`abs_b_ge`, proved).  With `arcsin|s₂ t| ≥ π/3` for
+`1 ≤ t ≤ 589` (from `|s₂(1)| > √3/2` and `arcsin(√3/2) = π/3`, `arcsin_abs_s2_ge`) the
+attained moduli are confined to
+
+| case | interval |
+|---|---|
+| `\|k\| = 1`, arcsin and `2kπ` of opposite sign | `[6.7985, 7.5528]` |
+| `\|k\| = 1`, same sign | `[10.5754, 11.3296]` |
+| `\|k\| = j ≥ 2` | `[(2πj − π/2)/ln 2, (2πj − π/3)/ln 2]` and `[(2πj + π/3)/ln 2, (2πj + π/2)/ln 2]` |
+
+so **no mode has modulus in `(7.5528, 10.5754)`** (`b_gap`); with the sharp endpoints of the
+swarm analysis the empty gap is `(7.28876, 10.84068)`.  The bands cover 8.8% of the positive
+line.
+
+*Correction (was: "within a band the lattice is an `0.0022`-net").*  `0.0022` is only the
+**average** spacing (200 points over a band of width 0.4407).  The actual spacing is strongly
+non-uniform: with `a_t = arcsin|s₂(t)|/ln 2` the consecutive gaps are `g_t = a_{t+1} − a_t`, and
+`g₁ = 0.1417588547867209`, so the first two phases are `0.1418` apart and no integer `t` places
+a phase within `0.0709` of their midpoint (rigorous lower bound `0.0537`).  The gaps decay like
+`g_t ~ C/(2t^{3/2})` with `C = 1/(72^{1/4}\,ln 2) = 0.495269307316804`, so a `0.0022`-net
+(every point within `0.0022` of a phase) requires spacing `≤ 0.0044`, which first holds at
+`t = 15`; the whole band is therefore *not* such a net.  The correct description is two discrete
+sequences, dense only near the accumulation point `a_∞ = π/(2 ln 2)`, with a hard hole near
+`t = 1`.
+
+Matching a target *inside* a band is thus even less informative than the average spacing
+suggests: near the sparse end the nearest phase can be `0.07` away.
+
+Consequence: the frequencies `b ≈ 6.5` and `b ≈ 7.6` proposed for `]0,10[` in the accompanying
+note are **not attainable**, and neither are the measured zero crossings except where they fall
+inside a band (25.115 does, 9 of 10 do not).  Matching a target inside a band is uninformative,
+since the band is an `0.0022`-net.

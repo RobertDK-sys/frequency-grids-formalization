@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export LEAN_PATH="$PWD:${LEAN_PATH}"
-MODULES=(FrequencyGrids.Basic FrequencyGrids.Lattice FrequencyGrids.Uniqueness FrequencyGrids.Enclosure FrequencyGrids.Counting FrequencyGrids.Neighbour FrequencyGrids.Parametric
+MODULES=(FrequencyGrids.Basic FrequencyGrids.Lattice FrequencyGrids.Uniqueness FrequencyGrids.Enclosure FrequencyGrids.Counting FrequencyGrids.Neighbour FrequencyGrids.Band FrequencyGrids.Parametric
          FrequencyGrids.Structure FrequencyGrids.Resonance FrequencyGrids.Eigen FrequencyGrids.GeneralGram FrequencyGrids.Estimate FrequencyGrids.Congruence FrequencyGrids.Conjectures FrequencyGrids.Necessary
          FrequencyGrids)
 for m in "${MODULES[@]}"; do
