@@ -1,0 +1,300 @@
+We believe that the zeros of the Riemann zeta function ζ(½ + ib), identified in quantum phase transitions and in *Floquet engineering* on trapped-ion qubits, have exact mathematical origins. By carefully interpreting the mathematical functions that generate these zeros, one can establish the possibility, even the evidence, of a mathematical link with these "quantum" zeros, provided one avoids a priori associating them with the classical zeros or forcing them to coincide with zeros such as: {14.134725141734693790…, 21.02203963877554993…, 25.010857580145688763…, 30.424876125859513210…, …}.
+
+Do these "quantum" zeros correspond to zeros of the zeta function, possibly also located in the interval ]0, 10[ for the imaginary part b?
+
+Here are the results obtained:
+
+**Some references:**
+
+1. He, R., Ai, M.-Z., Cui, J.-M., Huang, Y.-F., Han, Y.-J., Li, C.-F., Guo, G.-C., Sierra, G., & Creffield, C. E. (2021). Riemann zeros from Floquet engineering a trapped-ion qubit. npj Quantum Information, 7, 109. https://doi.org/10.1038/s41534-021-00446-7
+2. Wei, S., Zhai, Y., Lu, Q., Yang, W., Gao, P., Wei, C., Song, J., Nori, F., Xin, T., & Long, G. (2026). The Riemann Hypothesis manifested in dynamical quantum phase transitions. Nature Communications, 17, 8163. https://doi.org/10.1038/s41467-026-74935-8 (arXiv:2511.11199)
+
+Zenodo (DOI 10.5281/zenodo.20590665: https://zenodo.org/search?q=parent.id%3A20590665&f=allversions%3Atrue&l=list&p=1&s=10&sort=version; https://zenodo.org/records/20590666 and https://zenodo.org/records/20622753) or the cited GitHub (github.com/lqf2025/Riemann-data)
+
+**The stimulated "material"**
+
+It is not a material in the solid/crystal sense, but a molecule in solution: 1-bromo-2,4,5-trifluorobenzene, dissolved in a nematic liquid-crystal solvent (MBBA), on a Bruker Avance III 600 MHz NMR spectrometer. This molecule contains 3 ¹⁹F nuclei and 2 ¹H nuclei — 5 nuclear spins = 5 qubits. One spin (F₁) serves as the probe qubit, and the other 4 encode a 16-level system.
+
+**How the "signal" is produced — step by step**
+
+1. **Thermal state preparation**: starting from the natural NMR thermal equilibrium state, selective shaped pulses, pulsed field gradients, and SWAP gates redistribute the populations to artificially reproduce a population distribution ∝ n^(−β), which encodes Re(s) = β.
+
+2. **Controlled evolution**: the probe spin (prepared in the superposition |+⟩) is coupled to the system via a Hamiltonian H₀ = Σ ln(n)|n⟩⟨n|, applied for a time t. This evolution is implemented by a sequence of controlled multi-qubit Rz rotations, with angles θₙ = t·ln(n).
+
+3. **Measurement**: the coherence of the probe spin is measured, i.e. ⟨σx⟩ + i⟨σy⟩, at different times t. This measured quantity *is* directly L(β,t) — there is no a posteriori frequency filtering of the raw data.
+
+Relying solely on the raw measurements provided in the two experimental tables (Re_L, Im_L and |L| as a function of t) and on the shape of the points between t = 12.63 and t = 34.44, the dynamics of the signal can be decomposed in order to project its behavior onto the interval ]0, 10[.
+
+**1. Extraction of the exact zeros by linear interpolation of the raw data**
+
+By applying direct linear interpolation between the consecutive points bracketing each sign change of Re_L, as well as the cancellations of Im_L:
+
+| Cycle | β = 0.3 (Re_L = 0) | β = 0.5 (Re_L = 0) | β = 0.3 (Im_L = 0) | β = 0.5 (Im_L = 0) |
+|---|---|---|---|---|
+| **Zone 1** (t ≈ 13 – 15) | 13.457 (descending), 14.542 (rising) | 13.507 (descending), 13.583 (rising) | 14.009 (rising) | 14.175 (rising) |
+| **Zone 2** (t ≈ 20 – 22) | 20.797 (descending), 21.788 (rising) | 21.147 (descending), 21.482 (rising) | 19.827 (descending), 21.110 (rising) | 19.870 (descending), 20.913 (rising) |
+| **Zone 3** (t ≈ 24 – 26) | 25.115 (rising) | 24.287 (descending), 25.066 (rising) | 24.828 (rising), 25.838 (descending) | 24.904 (rising), 25.764 (descending) |
+| **Zone 4** (t ≈ 30 – 31) | 30.231 (descending), 30.884 (rising) | 30.344 (descending), 30.554 (rising) | 30.517 (rising), 31.797 (descending) | 30.524 (rising), 31.832 (descending) |
+| **Zone 5** (t ≈ 32 – 34) | 32.600 (descending), 33.514 (rising) | 32.787 (descending), 33.306 (rising) | 32.952 (rising), 34.379 (descending) | 33.016 (rising), 34.228 (descending) |
+
+(Note on the minima of |L| measured directly in the tables: they are systematically located in the middle of each trough of Re_L, i.e. at t = 14.134725, t = 21.022040, t = 25.010857, t = 30.424876 and t = 32.935061.)
+
+*Remark: the table was reconstructed from the pasted text, in which the columns were merged. The distribution of values among the columns is the most probable one, but please check it against your original data, especially for zones 3 to 5.*
+
+**2. Frequency decomposition of the raw measurements**
+
+Observation of the time series (Re_L, Im_L) reveals a complex signal L(t) = Re_L(t) + i·Im_L(t) composed of two main beating harmonics:
+
+**• Fast carrier component (ω₁)**: The phase rotation between Re_L and Im_L (visible in the quarter-period shift between the zeros of Re_L and those of Im_L, for example 20.80 → 21.11 → 21.79) indicates a short pseudo-period between T₁ ≈ 2.1 and 2.5 units of t.
+
+**• Slow modulation envelope (ω₂)**: The absolute maxima of |L| repeat at times t ≈ 15.63, 23.81, 28.92 and 34.44, while the deep troughs (where Re_L drops below zero and |L| reaches its minimum) appear with an average spacing of: Δt_trough ≈ 6.95 to 7.15 units (i.e. 21.02 − 14.13 = 6.89, 25.01 − 21.02 = 3.99 over a sub-beat, 30.42 − 23.81 = 6.61).
+
+**3. Back-projection of the measurements toward the interval ]0, 10[**
+
+By propagating to the left (t < 12.63) the oscillatory structure and the slopes measured on the first block of data (t ∈ [12.63, 15.63]):
+
+**• Going back from t = 12.634725**
+
+• At t = 12.634725, Re_L is in a fast descending phase (Re_L = 0.2777 for β = 0.3 and 0.3381 for β = 0.5), while Im_L is negative (≈ −0.19 to −0.20).
+
+• Going back toward t = 11.5 – 12.0, the curve reaches a local maximum of amplitude |L| ≈ 0.38 – 0.42 (corresponding to the peak visible at the far left of the graphs in Fig. 4).
+
+**• Locating the previous trough in ]0, 10[**
+
+• Applying the average recurrence step of the main troughs observed in the raw data (Δt ≈ 6.9 to 7.2 units) starting from the first measured trough (t_min = 14.134725, bracketed by the zeros of Re_L at 13.46 and 14.54): projected t_trough ≈ 14.135 − 7.05 ≈ 7.08.
+
+• In the raw measurements, each main trough has a bracketing width between its descending zero and its rising zero of Δt_width ≈ 1.08 units for β = 0.3 (and ≈ 0.10 to 0.35 units for β = 0.5, where the curve rises faster).
+
+**• Estimation of the projected values in ]0, 10[**
+
+**• For β = 0.3:** the back-extrapolation of the envelope places a zero crossing of Re_L (descending edge) around **t ≈ 6.5 ± 0.3**, followed by a second zero crossing (rising edge) around **t ≈ 7.6 ± 0.3** (with a local minimum of |L| centered near **t ≈ 7.05**).
+
+**• For β = 0.5:** the positive phase shift observed across all the tables (+0.05 to +0.35 on the descending edges relative to β = 0.3) slightly shifts this same crossing to **t ≈ 6.8 ± 0.3** (descending edge) and **t ≈ 7.2 ± 0.3** (rising edge).
+
+• Below t < 5, the overall amplitude |L| decreases monotonically toward 0 as t → 0, with no further negative oscillation of Re_L before the origin.
+
+---
+
+**Calculation of zeros and restricted experimental data:**
+
+### Table 1: β = 0.3
+
+I look at the `Re_L` column and the sign changes:
+
+- **Between t = 13.234725 (0.0727) and t = 13.534725 (-0.0255)**: positive → negative. **Zero ~ 13.38**
+- **Between t = 14.134725 (-0.0219) and t = 14.434725 (-0.0408)**: stays negative, no zero there, but between 13.834725 (-0.0786) and 14.134725 (-0.0219) it is negative, then 14.134725 (-0.0219) → 14.434725 (-0.0408): still negative. Then 14.434725 (-0.0408) → 14.734725 (0.0736): negative → positive. **Zero ~ 14.57**
+- **Between 15.634725 (0.2512) and 19.522040 (0.2139)**: positive, then 19.822040 (0.2465), 20.122040 (0.1976), 20.422040 (0.0927), 20.722040 (0.0220): still positive. Then 20.722040 (0.0220) → 21.022040 (-0.0656): positive → negative. **Zero ~ 20.85**
+- **Between 21.622040 (-0.0463) and 21.922040 (0.0374)**: negative → positive. **Zero ~ 21.78**
+- **Between 22.522040 (0.3205) and 23.510857 (0.3502)**: positive, no change.
+- **Between 24.410857 (-0.1201) and 24.710857 (-0.1260)**: negative, then 24.710857 (-0.1260) → 25.010857 (-0.0376): negative, then 25.010857 (-0.0376) → 25.310857 (0.0706): negative → positive. **Zero ~ 25.12**
+- **Between 25.310857 (0.0706) and 25.610857 (0.1738)**: positive, then 25.610857 (0.1738) → 25.910857 (0.2013): positive, then 25.910857 (0.2013) → 26.210857 (0.2465): positive. No zero.
+- **Between 26.510857 (0.1118) and 28.924876 (0.3787)**: positive, no change.
+- **Between 30.124876 (0.0305) and 30.424876 (-0.0556)**: positive → negative. **Zero ~ 30.25**
+- **Between 30.724876 (-0.0486) and 31.024876 (0.0432)**: negative → positive. **Zero ~ 30.87**
+- **Between 32.635061 (-0.0122) and 32.935061 (-0.1070)**: negative, then 32.935061 (-0.1070) → 33.235061 (-0.0259): negative, then 33.235061 (-0.0259) → 33.535061 (0.0020): negative → positive. **Zero ~ 33.38**
+
+### Table 2: β = 0.5
+
+I look at the `Re_L` column:
+
+- **Between 13.234725 (0.0815) and 13.534725 (-0.0082)**: positive → negative. **Zero ~ 13.44**
+- **Between 13.534725 (-0.0082) and 13.834725 (0.0426)**: negative → positive. **Zero ~ 13.68**
+- **Between 14.434725 (0.0369) and 14.734725 (0.1214)**: positive, no zero.
+- **Between 15.634725 (0.3252) and 19.522040 (0.2179)**: positive, then 19.822040 (0.2425), 20.122040 (0.2294), 20.422040 (0.0939), 20.722040 (0.0273): positive, then 20.722040 (0.0273) → 21.022040 (0.0286): still positive, then 21.022040 (0.0286) → 21.322040 (-0.0403): positive → negative. **Zero ~ 21.15**
+- **Between 21.322040 (-0.0403) and 21.622040 (0.0473)**: negative → positive. **Zero ~ 21.48**
+- **Between 22.522040 (0.3738) and 23.510857 (0.3978)**: positive, no zero.
+- **Between 24.110857 (0.0867) and 24.410857 (-0.0609)**: positive → negative. **Zero ~ 24.25**
+- **Between 24.410857 (-0.0609) and 24.710857 (-0.0284)**: negative, then 24.710857 (-0.0284) → 25.010857 (-0.0216): negative, then 25.010857 (-0.0216) → 25.310857 (0.0969): negative → positive. **Zero ~ 25.05**
+- **Between 26.510857 (0.1316) and 28.924876 (0.3977)**: positive, no zero.
+- **Between 30.124876 (0.0515) and 30.424876 (-0.0190)**: positive → negative. **Zero ~ 30.25**
+- **Between 30.724876 (0.0251) and 31.024876 (0.0987)**: positive, no zero.
+- **Between 32.635061 (0.0391) and 32.935061 (-0.0380)**: positive → negative. **Zero ~ 32.78**
+- **Between 32.935061 (-0.0380) and 33.235061 (-0.0293)**: negative, then 33.235061 (-0.0293) → 33.535061 (0.1155): negative → positive. **Zero ~ 33.38**
+
+Looking at the zeros found:
+
+- **14.12**: In table 1, the closest zero is 14.57, and in table 2 there is a zero at 13.68. 14.12 falls within the interval [14.134725, 14.434725] of table 1, where Re_L goes from -0.0219 to -0.0408 (stays negative) → not a zero. In table 2, it lies between 13.834725 (0.0426) and 14.134725 (0.0437): positive, no zero. So 14.12 is not a zero.
+- **15.912783**: In both tables, for t between 15.634725 and 19.522040, Re_L is positive (0.2512, 0.2139 for β=0.3; 0.3252, 0.2179 for β=0.5). No zero.
+- **20.96**: In table 1, the zero is around 20.85 (between 20.722040 and 21.022040). 20.96 is very close to this zero. **It is a probable zero.**
+- **20.346099**: In table 1, between 20.122040 (0.1976) and 20.422040 (0.0927), Re_L stays positive → no zero. In table 2, between 20.122040 (0.2294) and 20.422040 (0.0939), also positive → no zero.
+- **25.092890**: In table 1, zero around 25.12 (between 25.010857 and 25.310857). 25.092890 falls within this interval. **It is a probable zero.**
+- **30.44**: In table 1, the closest zero is 30.25 (between 30.124876 and 30.424876). But 30.44 is beyond 30.424876, where Re_L = -0.0556, and then 30.724876 = -0.0486, so no zero at 30.44. In table 2, zero around 30.25 as well, but 30.44 lies between 30.424876 (-0.0190) and 30.724876 (0.0251) → negative → positive, so a zero around 30.62, not 30.44.
+- **29.410819**: In table 1, between 29.224876 (0.3824) and 29.524876 (0.2380), Re_L is positive, no zero. In table 2, between 29.224876 (0.3691) and 29.524876 (0.2585), also positive, no zero.
+
+**Here are 2 experimental tables:**
+
+**1》**
+Experimental table L(beta,t) — beta = 0.3
+Number of points: 55
+
+```
+           t |       Re_L |   Re_L_std |       Im_L |   Im_L_std |      abs_L |  abs_L_std
+------------------------------------------------------------------------------------------
+   12.634725 |     0.2777 |     0.0042 |    -0.1991 |     0.0073 |     0.3417 |     0.0023
+   12.934725 |     0.1337 |     0.0053 |    -0.2027 |     0.0257 |     0.2430 |     0.0243
+   13.234725 |     0.0727 |     0.0021 |    -0.2369 |     0.0049 |     0.2478 |     0.0052
+   13.534725 |    -0.0255 |     0.0065 |    -0.1209 |     0.0048 |     0.1236 |     0.0056
+   13.834725 |    -0.0786 |     0.0073 |    -0.0662 |     0.0103 |     0.1033 |     0.0039
+   14.134725 |    -0.0219 |     0.0036 |     0.0470 |     0.0031 |     0.0519 |     0.0041
+   14.434725 |    -0.0408 |     0.0071 |     0.0909 |     0.0019 |     0.0998 |     0.0044
+   14.734725 |     0.0736 |     0.0116 |     0.1136 |     0.0182 |     0.1356 |     0.0192
+   15.034725 |     0.0917 |     0.0036 |     0.1565 |     0.0103 |     0.1814 |     0.0105
+   15.334725 |     0.2234 |     0.0080 |     0.1744 |     0.0052 |     0.2835 |     0.0035
+   15.634725 |     0.2512 |     0.0124 |     0.0629 |     0.0097 |     0.2590 |     0.0143
+   19.522040 |     0.2139 |     0.0200 |     0.1103 |     0.0110 |     0.2408 |     0.0209
+   19.822040 |     0.2465 |     0.0026 |     0.0006 |     0.0122 |     0.2467 |     0.0028
+   20.122040 |     0.1976 |     0.0043 |    -0.0362 |     0.0109 |     0.2011 |     0.0047
+   20.422040 |     0.0927 |     0.0053 |    -0.1289 |     0.0065 |     0.1588 |     0.0073
+   20.722040 |     0.0220 |     0.0167 |    -0.0745 |     0.0047 |     0.0786 |     0.0091
+   21.022040 |    -0.0656 |     0.0110 |    -0.0332 |     0.0035 |     0.0738 |     0.0085
+   21.322040 |    -0.0900 |     0.0071 |     0.0795 |     0.0167 |     0.1203 |     0.0155
+   21.622040 |    -0.0463 |     0.0032 |     0.1729 |     0.0237 |     0.1790 |     0.0237
+   21.922040 |     0.0374 |     0.0082 |     0.2823 |     0.0293 |     0.2849 |     0.0281
+   22.222040 |     0.1977 |     0.0104 |     0.2626 |     0.0140 |     0.3287 |     0.0173
+   22.522040 |     0.3205 |     0.0129 |     0.2151 |     0.0100 |     0.3860 |     0.0163
+   23.510857 |     0.3502 |     0.0055 |    -0.2182 |     0.0044 |     0.4126 |     0.0051
+   23.810857 |     0.2312 |     0.0094 |    -0.3636 |     0.0054 |     0.4310 |     0.0011
+   24.110857 |     0.0324 |     0.0043 |    -0.3127 |     0.0043 |     0.3144 |     0.0041
+   24.410857 |    -0.1201 |     0.0107 |    -0.2127 |     0.0094 |     0.2443 |     0.0129
+   24.710857 |    -0.1260 |     0.0074 |    -0.0627 |     0.0128 |     0.1412 |     0.0044
+   25.010857 |    -0.0376 |     0.0091 |     0.0952 |     0.0012 |     0.1026 |     0.0032
+   25.310857 |     0.0706 |     0.0083 |     0.1090 |     0.0108 |     0.1299 |     0.0120
+   25.610857 |     0.1738 |     0.0368 |     0.0863 |     0.0142 |     0.1943 |     0.0372
+   25.910857 |     0.2013 |     0.0176 |    -0.0275 |     0.0028 |     0.2032 |     0.0172
+   26.210857 |     0.2465 |     0.0074 |    -0.1653 |     0.0035 |     0.2969 |     0.0047
+   26.510857 |     0.1118 |     0.0130 |    -0.1873 |     0.0065 |     0.2182 |     0.0120
+   28.924876 |     0.3787 |     0.0049 |     0.1361 |     0.0064 |     0.4024 |     0.0065
+   29.224876 |     0.3824 |     0.0159 |    -0.0642 |     0.0109 |     0.3878 |     0.0171
+   29.524876 |     0.2380 |     0.0066 |    -0.1640 |     0.0115 |     0.2892 |     0.0058
+   29.824876 |     0.1392 |     0.0099 |    -0.1657 |     0.0072 |     0.2166 |     0.0063
+   30.124876 |     0.0305 |     0.0056 |    -0.1575 |     0.0034 |     0.1605 |     0.0032
+   30.424876 |    -0.0556 |     0.0075 |    -0.0655 |     0.0068 |     0.0862 |     0.0057
+   30.724876 |    -0.0486 |     0.0066 |     0.1481 |     0.0088 |     0.1559 |     0.0104
+   31.024876 |     0.0432 |     0.0138 |     0.1410 |     0.0073 |     0.1477 |     0.0111
+   31.324876 |     0.2149 |     0.0036 |     0.1845 |     0.0042 |     0.2833 |     0.0019
+   31.435061 |     0.1921 |     0.0023 |     0.1287 |     0.0091 |     0.2313 |     0.0070
+   31.624876 |     0.2530 |     0.0113 |     0.0557 |     0.0105 |     0.2593 |     0.0090
+   31.735061 |     0.2808 |     0.0064 |     0.0395 |     0.0104 |     0.2837 |     0.0077
+   31.924876 |     0.2648 |     0.0105 |    -0.1011 |     0.0118 |     0.2837 |     0.0057
+   32.035061 |     0.2382 |     0.0097 |    -0.1170 |     0.0098 |     0.2655 |     0.0110
+   32.335061 |     0.1507 |     0.0081 |    -0.1408 |     0.0047 |     0.2063 |     0.0091
+   32.635061 |    -0.0122 |     0.0081 |    -0.1865 |     0.0098 |     0.1870 |     0.0104
+   32.935061 |    -0.1070 |     0.0078 |    -0.0073 |     0.0035 |     0.1073 |     0.0080
+   33.235061 |    -0.0259 |     0.0070 |     0.1193 |     0.0086 |     0.1222 |     0.0098
+   33.535061 |     0.0020 |     0.0106 |     0.2766 |     0.0028 |     0.2767 |     0.0026
+   33.835061 |     0.2862 |     0.0041 |     0.3269 |     0.0050 |     0.4345 |     0.0056
+   34.135061 |     0.4492 |     0.0048 |     0.1506 |     0.0046 |     0.4738 |     0.0052
+   34.435061 |     0.4785 |     0.0093 |    -0.0351 |     0.0075 |     0.4798 |     0.0097
+```
+
+**2》**
+Experimental table L(beta,t) — beta = 0.5
+Number of points: 55
+
+```
+           t |       Re_L |   Re_L_std |       Im_L |   Im_L_std |      abs_L |  abs_L_std
+------------------------------------------------------------------------------------------
+   12.634725 |     0.3381 |     0.0122 |    -0.1866 |     0.0100 |     0.3864 |     0.0058
+   12.934725 |     0.2237 |     0.0023 |    -0.2172 |     0.0130 |     0.3120 |     0.0073
+   13.234725 |     0.0815 |     0.0103 |    -0.2356 |     0.0074 |     0.2495 |     0.0038
+   13.534725 |    -0.0082 |     0.0051 |    -0.1139 |     0.0051 |     0.1143 |     0.0051
+   13.834725 |     0.0426 |     0.0053 |    -0.0441 |     0.0079 |     0.0617 |     0.0041
+   14.134725 |     0.0437 |     0.0201 |    -0.0143 |     0.0157 |     0.0493 |     0.0131
+   14.434725 |     0.0369 |     0.0046 |     0.0909 |     0.0062 |     0.0982 |     0.0043
+   14.734725 |     0.1214 |     0.0131 |     0.1094 |     0.0195 |     0.1636 |     0.0224
+   15.034725 |     0.1398 |     0.0182 |     0.1697 |     0.0241 |     0.2200 |     0.0299
+   15.334725 |     0.2178 |     0.0092 |     0.1233 |     0.0104 |     0.2503 |     0.0131
+   15.634725 |     0.3252 |     0.0057 |     0.1122 |     0.0044 |     0.3441 |     0.0067
+   19.522040 |     0.2179 |     0.0220 |     0.1221 |     0.0173 |     0.2506 |     0.0127
+   19.822040 |     0.2425 |     0.0276 |     0.0170 |     0.0383 |     0.2454 |     0.0228
+   20.122040 |     0.2294 |     0.0059 |    -0.0881 |     0.0192 |     0.2462 |     0.0062
+   20.422040 |     0.0939 |     0.0130 |    -0.1113 |     0.0079 |     0.1459 |     0.0108
+   20.722040 |     0.0273 |     0.0018 |    -0.0963 |     0.0068 |     0.1002 |     0.0063
+   21.022040 |     0.0286 |     0.0059 |     0.0551 |     0.0212 |     0.0632 |     0.0167
+   21.322040 |    -0.0403 |     0.0056 |     0.1184 |     0.0203 |     0.1255 |     0.0177
+   21.622040 |     0.0473 |     0.0070 |     0.1816 |     0.0020 |     0.1878 |     0.0019
+   21.922040 |     0.1466 |     0.0022 |     0.2827 |     0.0153 |     0.3185 |     0.0133
+   22.222040 |     0.2831 |     0.0106 |     0.2702 |     0.0147 |     0.3914 |     0.0175
+   22.522040 |     0.3738 |     0.0181 |     0.1984 |     0.0165 |     0.4232 |     0.0238
+   23.510857 |     0.3978 |     0.0097 |    -0.2585 |     0.0083 |     0.4745 |     0.0071
+   23.810857 |     0.2666 |     0.0120 |    -0.3528 |     0.0135 |     0.4422 |     0.0167
+   24.110857 |     0.0867 |     0.0107 |    -0.3165 |     0.0031 |     0.3283 |     0.0004
+   24.410857 |    -0.0609 |     0.0034 |    -0.2423 |     0.0156 |     0.2498 |     0.0159
+   24.710857 |    -0.0284 |     0.0077 |    -0.0915 |     0.0131 |     0.0959 |     0.0141
+   25.010857 |    -0.0216 |     0.0190 |     0.0504 |     0.0116 |     0.0561 |     0.0169
+   25.310857 |     0.0969 |     0.0081 |     0.0783 |     0.0096 |     0.1248 |     0.0077
+   25.610857 |     0.1615 |     0.0032 |     0.0580 |     0.0050 |     0.1716 |     0.0034
+   25.910857 |     0.2214 |     0.0153 |    -0.0477 |     0.0124 |     0.2266 |     0.0166
+   26.210857 |     0.1608 |     0.0089 |    -0.1563 |     0.0062 |     0.2244 |     0.0025
+   26.510857 |     0.1316 |     0.0127 |    -0.1946 |     0.0151 |     0.2350 |     0.0194
+   28.924876 |     0.3977 |     0.0104 |     0.0775 |     0.0051 |     0.4053 |     0.0098
+   29.224876 |     0.3691 |     0.0095 |    -0.0570 |     0.0079 |     0.3735 |     0.0093
+   29.524876 |     0.2585 |     0.0059 |    -0.1034 |     0.0205 |     0.2790 |     0.0047
+   29.824876 |     0.1940 |     0.0075 |    -0.1785 |     0.0141 |     0.2638 |     0.0118
+   30.124876 |     0.0515 |     0.0094 |    -0.1282 |     0.0041 |     0.1383 |     0.0060
+   30.424876 |    -0.0190 |     0.0029 |    -0.0413 |     0.0014 |     0.0455 |     0.0020
+   30.724876 |     0.0251 |     0.0083 |     0.0830 |     0.0084 |     0.0871 |     0.0058
+   31.024876 |     0.0987 |     0.0081 |     0.1939 |     0.0133 |     0.2176 |     0.0138
+   31.324876 |     0.2425 |     0.0130 |     0.1498 |     0.0092 |     0.2851 |     0.0158
+   31.435061 |     0.2466 |     0.0216 |     0.0923 |     0.0005 |     0.2634 |     0.0201
+   31.624876 |     0.2972 |     0.0211 |     0.0940 |     0.0107 |     0.3118 |     0.0218
+   31.735061 |     0.3220 |     0.0147 |     0.0326 |     0.0110 |     0.3239 |     0.0137
+   31.924876 |     0.2934 |     0.0241 |    -0.0240 |     0.0109 |     0.2944 |     0.0247
+   32.035061 |     0.2942 |     0.0107 |    -0.0349 |     0.0212 |     0.2967 |     0.0129
+   32.335061 |     0.1446 |     0.0086 |    -0.1863 |     0.0059 |     0.2359 |     0.0098
+   32.635061 |     0.0391 |     0.0025 |    -0.1619 |     0.0023 |     0.1666 |     0.0024
+   32.935061 |    -0.0380 |     0.0204 |    -0.0277 |     0.0125 |     0.0502 |     0.0103
+   33.235061 |    -0.0293 |     0.0068 |     0.0794 |     0.0052 |     0.0847 |     0.0062
+   33.535061 |     0.1155 |     0.0030 |     0.2222 |     0.0096 |     0.2504 |     0.0090
+   33.835061 |     0.3219 |     0.0092 |     0.2414 |     0.0221 |     0.4027 |     0.0125
+   34.135061 |     0.4904 |     0.0250 |     0.0630 |     0.0128 |     0.4946 |     0.0234
+   34.435061 |     0.5220 |     0.0147 |    -0.1441 |     0.0150 |     0.5417 |     0.0145
+```
+
+**Algorithm for computing b_mathematical:** the parameters t_max and k_range are adjustable. The term −s2(t) provides the b of opposite sign, whereas the b arising from s2(t) are obtained directly, with, exceptionally, their own sign (positive or negative):
+
+```python
+"""
+Algorithm 2 — General solution of the characteristic equation
+--------------------------------------------------------------------
+_get_s2(t) calls brentq(_equation, ...) to obtain the real root s2(t) ∈ [-0.9999,
+-0.0001], for all t ≥ 1. _S2_TABLE is now built by calling _get_s2(t).
+
+    0 = |8·s2^6 − 24·s2^4 + 24·s2^2 − 8|^(2/3)
+        · (24·k3^2·s2^6 − 72·k3^2·s2^4 − 24·k3^2) + 4·s2^4,   with k3 = -t
+
+    b(t, k) = [arcsin(s2(t)) − 2·k·π] / ln(2),   k nonzero integer
+"""
+from math import asin, log, pi
+from scipy.optimize import brentq
+
+t_max = 100
+k_range = 10
+
+
+def _equation(s2, k3):
+    A = 8 * s2 ** 6 - 24 * s2 ** 4 + 24 * s2 ** 2 - 8
+    return abs(A) ** (2 / 3) * (24 * k3 ** 2 * s2 ** 6 - 72 * k3 ** 2 * s2 ** 4 - 24 * k3 ** 2) + 4 * s2 ** 4
+
+
+def _get_s2(t):
+    """Numerically solves the characteristic equation for k3 = -t
+    and returns the root s2(t) in (-1, 0). This is where — and only
+    where — the solution takes place; there is no stub table anymore."""
+    return brentq(_equation, -0.9999, -0.0001, args=(-t,), xtol=1e-14)
+
+
+# _S2_TABLE now actually calls _get_s2(t) for each t,
+# instead of the linear placeholder of the previous version.
+_S2_TABLE = {t: _get_s2(t) for t in range(1, t_max + 1)}
+
+
+if __name__ == "__main__":
+    for t in range(1, t_max + 1):
+        s2_val = _S2_TABLE[t]
+        for signe in (1, -1):
+            for k in range(-k_range, k_range + 1):
+                if k != 0:
+                    b = (asin(signe * abs(s2_val)) - 2 * k * pi) / log(2)
+                    print('b =', b)
+```

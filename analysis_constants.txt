@@ -1,0 +1,24 @@
+grid spacing if 55 equally spaced points span [12.63,34.44]
+h = 0.403888888888889
+
+preassigned five-target analysis
+z_5 = 2.575829303549
+delta/z_5 = 0.038822448313
+margin at s=0.02 = 0.048483413929
+single-target power = 0.984656608348
+independent all-five power = 0.925601393312
+dependence-robust lower bound = 0.923283041738
+
+look-elsewhere illustrations
+fixed mapping, 5: M=5, z=2.575829303549, delta/z=0.038822448313
+120 settings, fixed mapping: M=600, z=3.934605861560, delta/z=0.025415506284
+one setting, monotone best five of ten: M=1260, z=4.109320282056, delta/z=0.024334924790
+one setting, unrestricted injection from ten: M=151200, z=5.105060997068, delta/z=0.019588404538
+120 settings, monotone best five of ten: M=151200, z=5.105060997068, delta/z=0.019588404538
+120 settings, unrestricted injection from ten: M=18144000, z=5.945524405102, delta/z=0.016819374236
+
+Sidak check for five independent targets
+per-target two-sided coverage = 0.989793781686989
+z_Sidak = 2.568763168011
+
+Fieller polynomial coefficients for documented example: (3.9984634164717225, 0.04, -0.00143658352827765)
