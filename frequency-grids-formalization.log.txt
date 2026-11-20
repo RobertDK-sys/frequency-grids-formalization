@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025/Debian) (preloaded format=pdflatex 2026.10.2)  5 NOV 2026 11:53
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025/Debian) (preloaded format=pdflatex 2026.10.2)  20 NOV 2026 09:06
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -655,413 +655,426 @@ athsy.enc}])
 \openout4 = `frequency-grids-formalization.toc'.
 
 LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 1
-42.
+49.
  (/usr/share/texmf/tex/latex/lm/ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 ) [2{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}{/usr/share/texmf/fonts/enc
 /dvips/lm/lm-mathex.enc}] [3]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <14.4> on input line 202.
+(Font)              <14.4> on input line 209.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 202.
+(hyperref)                removing `math shift' on input line 209.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `subscript' on input line 202.
+(hyperref)                removing `subscript' on input line 209.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 202.
+(hyperref)                removing `math shift' on input line 209.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 204.
+(hyperref)                removing `math shift' on input line 211.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 204.
+(hyperref)                removing `math shift' on input line 211.
 
 [4]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 292.
+(hyperref)                removing `math shift' on input line 299.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `subscript' on input line 292.
+(hyperref)                removing `subscript' on input line 299.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 292.
+(hyperref)                removing `math shift' on input line 299.
 
 [5]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 361.
+(hyperref)                removing `math shift' on input line 368.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 361.
+(hyperref)                removing `math shift' on input line 368.
 
 [6]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 464.
+(hyperref)                removing `math shift' on input line 471.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\new@ifnextchar' on input line 464.
+(hyperref)                removing `\new@ifnextchar' on input line 471.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `subscript' on input line 464.
+(hyperref)                removing `subscript' on input line 471.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 464.
+(hyperref)                removing `math shift' on input line 471.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 464.
+(hyperref)                removing `math shift' on input line 471.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\mapstochar' on input line 464.
+(hyperref)                removing `\mapstochar' on input line 471.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\rightarrow' on input line 464.
+(hyperref)                removing `\rightarrow' on input line 471.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 464.
+(hyperref)                removing `math shift' on input line 471.
 
 [7]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 491.
+(hyperref)                removing `math shift' on input line 498.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\pm' on input line 491.
+(hyperref)                removing `\pm' on input line 498.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 491.
+(hyperref)                removing `math shift' on input line 498.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 509.
+(hyperref)                removing `math shift' on input line 516.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `subscript' on input line 509.
+(hyperref)                removing `subscript' on input line 516.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 509.
+(hyperref)                removing `math shift' on input line 516.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 509.
+(hyperref)                removing `math shift' on input line 516.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `subscript' on input line 509.
+(hyperref)                removing `subscript' on input line 516.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 509.
+(hyperref)                removing `math shift' on input line 516.
 
 [8] [9]
-Underfull \hbox (badness 2884) in paragraph at lines 686--689
+Underfull \hbox (badness 2884) in paragraph at lines 693--696
 [][]\T1/lmr/bx/n/10.95 (+20) Theorem 9.17 \T1/lmr/m/n/10.95 (+20) (\T1/lmtt/m/n
 /10.95 card_freqSet\T1/lmr/m/n/10.95 (+20) , \T1/lmtt/m/n/10.95 gramFreq_isHerm
 itian\T1/lmr/m/n/10.95 (+20) , \T1/lmtt/m/n/10.95 gramFreq_posSemidef\T1/lmr/m/
 n/10.95 (+20) , \T1/lmtt/m/n/10.95 rank_
  []
 
-[10] [11] [12]
+[10] [11] [12] [13]
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 964.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `subscript' on input line 964.
+(hyperref)                removing `math shift' on input line 971.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\max' on input line 964.
+(hyperref)                removing `subscript' on input line 971.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 964.
-
-[13]
-
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 1012.
+(hyperref)                removing `\max' on input line 971.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `subscript' on input line 1012.
+(hyperref)                removing `math shift' on input line 971.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\max' on input line 1012.
+(hyperref)                removing `math shift' on input line 1019.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 1012.
+(hyperref)                removing `subscript' on input line 1019.
 
-[14]
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `\max' on input line 1019.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 1019.
+
+[14] [15] [16]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <9> on input line 1114.
+(Font)              <9> on input line 1233.
 
-Underfull \hbox (badness 10000) in paragraph at lines 1159--1159
+Underfull \hbox (badness 10000) in paragraph at lines 1278--1278
 []|\T1/lmtt/m/n/9 exists\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 unique\T1/lmr/m/n/9
  (+20) _\T1/lmtt/m/n/9 root\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1162--1162
+Underfull \hbox (badness 10000) in paragraph at lines 1281--1281
 []|\T1/lmtt/m/n/9 s2\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 mem\T1/lmr/m/n/9 (+20) 
 _\T1/lmtt/m/n/9 of\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 sign\T1/lmr/m/n/9 (+20) _
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1169--1169
+Underfull \hbox (badness 10000) in paragraph at lines 1288--1288
 []|\T1/lmtt/m/n/9 card\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 le\T1/lmr/m/n/9 (+20)
  _\T1/lmtt/m/n/9 of\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 forall\T1/lmr/m/n/9 (+20
 ) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1170--1170
+Underfull \hbox (badness 10000) in paragraph at lines 1289--1289
 []|\T1/lmtt/m/n/9 le\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 card\T1/lmr/m/n/9 (+20)
  _\T1/lmtt/m/n/9 of\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 forall\T1/lmr/m/n/9 (+20
 ) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1200--1200
+Underfull \hbox (badness 10000) in paragraph at lines 1319--1319
 []|\T1/lmtt/m/n/9 card\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 modeSet\T1/lmr/m/n/9 
 (+20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1201--1201
+Underfull \hbox (badness 10000) in paragraph at lines 1320--1320
 []|\T1/lmtt/m/n/9 NR\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9 (+20) _
 \T1/lmtt/m/n/9 Ntotal\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 of\T1/lmr/m/n/9 (+20) 
 _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1206--1206
+Underfull \hbox (badness 10000) in paragraph at lines 1325--1325
 []|\T1/lmtt/m/n/9 collision\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 imp\T1/lmr/m/n/9
  (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1214--1214
+Underfull \hbox (badness 10000) in paragraph at lines 1333--1333
 []|\T1/lmtt/m/n/9 norm\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 exp\T1/lmr/m/n/9 (+20
 ) _\T1/lmtt/m/n/9 I\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 sub\T1/lmr/m/n/9 (+20) _
 \T1/lmtt/m/n/9 one\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1215--1215
+Underfull \hbox (badness 10000) in paragraph at lines 1334--1334
 []|\T1/lmtt/m/n/9 gramCoeff\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 offdiag\T1/lmr/m
 /n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1249--1249
+Underfull \hbox (badness 10000) in paragraph at lines 1368--1368
 []|\T1/lmtt/m/n/9 sum\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 Icc\T1/lmr/m/n/9 (+20)
  _\T1/lmtt/m/n/9 one\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9 (+20) _
 \T1/lmtt/m/n/9 sum\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1250--1250
+Underfull \hbox (badness 10000) in paragraph at lines 1369--1369
 []|\T1/lmtt/m/n/9 gramMatrix\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9
  (+20) _\T1/lmtt/m/n/9 mul\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1257--1257
+Underfull \hbox (badness 10000) in paragraph at lines 1376--1376
 []|\T1/lmtt/m/n/9 mulVec\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1257--1257
+Underfull \hbox (badness 10000) in paragraph at lines 1376--1376
 \T1/lmtt/m/n/9 eigenvectorBasis\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1258--1258
+Underfull \hbox (badness 10000) in paragraph at lines 1377--1377
 []|\T1/lmtt/m/n/9 card\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 nonzero\T1/lmr/m/n/9 
 (+20) _\T1/lmtt/m/n/9 eig\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9 (+
 20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1259--1259
+Underfull \hbox (badness 10000) in paragraph at lines 1378--1378
 []|\T1/lmtt/m/n/9 card\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 nonzero\T1/lmr/m/n/9 
 (+20) _\T1/lmtt/m/n/9 eig\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 le\T1/lmr/m/n/9 (+
 20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1263--1263
+Underfull \hbox (badness 10000) in paragraph at lines 1382--1382
 []|\T1/lmtt/m/n/9 Noff\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9 (+20)
  _\T1/lmtt/m/n/9 card\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 of\T1/lmr/m/n/9 (+20) 
 _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1264--1264
+Underfull \hbox (badness 10000) in paragraph at lines 1383--1383
 []|\T1/lmtt/m/n/9 Noff\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9 (+20)
  _\T1/lmtt/m/n/9 card\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 of\T1/lmr/m/n/9 (+20) 
 _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1269--1269
+Underfull \hbox (badness 10000) in paragraph at lines 1388--1388
 []|\T1/lmtt/m/n/9 gramMatrix\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 diag\T1/lmr/m/n
 /9 (+20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1271--1271
+Underfull \hbox (badness 10000) in paragraph at lines 1390--1390
 []|\T1/lmtt/m/n/9 rank\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 gramMatrix\T1/lmr/m/n
 /9 (+20) _\T1/lmtt/m/n/9 le\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1273--1273
+Underfull \hbox (badness 10000) in paragraph at lines 1392--1392
 []|\T1/lmtt/m/n/9 Noff\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9 (+20)
  _\T1/lmtt/m/n/9 card\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 of\T1/lmr/m/n/9 (+20) 
 _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1288--1288
+Underfull \hbox (badness 10000) in paragraph at lines 1416--1416
+[]|\T1/lmtt/m/n/9 arcsin\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 sqrt\T1/lmr/m/n/9 (
++20) _\T1/lmtt/m/n/9 three\T1/lmr/m/n/9 (+20) _
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1418--1418
+[]|\T1/lmtt/m/n/9 sqrt\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 three\T1/lmr/m/n/9 (+
+20) _\T1/lmtt/m/n/9 div\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 two\T1/lmr/m/n/9 (+2
+0) _
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1435--1435
 []|\T1/lmtt/m/n/9 gramOf\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9 (+2
 0) _\T1/lmtt/m/n/9 mul\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1289--1289
+Underfull \hbox (badness 10000) in paragraph at lines 1436--1436
 []|\T1/lmtt/m/n/9 gramOf\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 nat\T1/lmr/m/n/9 (+
 20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 mul\T1/lmr/m/n/9 (+20
 ) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1295--1295
+Underfull \hbox (badness 10000) in paragraph at lines 1442--1442
 []|\T1/lmtt/m/n/9 rank\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 gramOf\T1/lmr/m/n/9 (
 +20) _\T1/lmtt/m/n/9 le\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 rank\T1/lmr/m/n/9 (+
 20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1297--1297
+Underfull \hbox (badness 10000) in paragraph at lines 1444--1444
 []|\T1/lmtt/m/n/9 card\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 nonzero\T1/lmr/m/n/9 
 (+20) _\T1/lmtt/m/n/9 eigOf\T1/lmr/m/n/9 (+20) _
  []
 
-
-Underfull \hbox (badness 10000) in paragraph at lines 1302--1302
+[17]
+Underfull \hbox (badness 10000) in paragraph at lines 1449--1449
 []|\T1/lmtt/m/n/9 gramMatrix\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 nat\T1/lmr/m/n/
 9 (+20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1306--1306
+Underfull \hbox (badness 10000) in paragraph at lines 1453--1453
 []|\T1/lmtt/m/n/9 gramFreq\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9 (
 +20) _\T1/lmtt/m/n/9 mul\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1322--1322
+Underfull \hbox (badness 10000) in paragraph at lines 1469--1469
 []|\T1/lmtt/m/n/9 Noff\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 eq\T1/lmr/m/n/9 (+20)
  _\T1/lmtt/m/n/9 card\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 of\T1/lmr/m/n/9 (+20) 
 _
  []
 
-[15]
-Underfull \hbox (badness 10000) in paragraph at lines 1328--1329
+
+Underfull \hbox (badness 10000) in paragraph at lines 1475--1476
 []|\T1/lmr/m/n/9 (+20) not
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1329--1330
+Underfull \hbox (badness 10000) in paragraph at lines 1476--1477
 []|\T1/lmr/m/n/9 (+20) not
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1330--1331
+Underfull \hbox (badness 10000) in paragraph at lines 1477--1478
 []|\T1/lmr/m/n/9 (+20) not
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1333--1334
+Underfull \hbox (badness 10000) in paragraph at lines 1480--1481
 []|\T1/lmr/m/n/9 (+20) not
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1334--1334
+Underfull \hbox (badness 10000) in paragraph at lines 1481--1481
 []|\T1/lmtt/m/n/9 Primality\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 Criterion\T1/lmr
 /m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1334--1335
+Underfull \hbox (badness 10000) in paragraph at lines 1481--1482
 []|\T1/lmr/m/n/9 (+20) not
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1338--1338
+Underfull \hbox (badness 10000) in paragraph at lines 1485--1485
 []|\T1/lmtt/m/n/9 NvanLittleO\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1339--1339
+Underfull \hbox (badness 10000) in paragraph at lines 1486--1486
 []|\T1/lmtt/m/n/9 NvanLittleO\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1340--1340
+Underfull \hbox (badness 10000) in paragraph at lines 1487--1487
 []|\T1/lmtt/m/n/9 not\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 NvanLittleO\T1/lmr/m/n
 /9 (+20) _\T1/lmtt/m/n/9 of\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1341--1341
+Underfull \hbox (badness 10000) in paragraph at lines 1488--1488
 []|\T1/lmtt/m/n/9 not\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 NvanLittleO\T1/lmr/m/n
 /9 (+20) _\T1/lmtt/m/n/9 of\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1343--1343
+Underfull \hbox (badness 10000) in paragraph at lines 1490--1490
 []|\T1/lmtt/m/n/9 NvanFreqLittleO\T1/lmr/m/n/9 (+20) _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1344--1344
+Underfull \hbox (badness 10000) in paragraph at lines 1491--1491
 []|\T1/lmtt/m/n/9 not\T1/lmr/m/n/9 (+20) _\T1/lmtt/m/n/9 NvanFreqLittleO\T1/lmr
 /m/n/9 (+20) _
  []
 
-ignored error: Infinite glue shrinkage found in box being split [16]
-ignored error: Infinite glue shrinkage found in box being split [17]
 ignored error: Infinite glue shrinkage found in box being split [18]
-ignored error: Infinite glue shrinkage found in box being split [19] [20]
+ignored error: Infinite glue shrinkage found in box being split [19]
+ignored error: Infinite glue shrinkage found in box being split [20]
+ignored error: Infinite glue shrinkage found in box being split [21]
+ignored error: Infinite glue shrinkage found in box being split [22] [23]
 (./frequency-grids-formalization.aux)
  ***********
 LaTeX2e <2025-11-01>
@@ -1069,16 +1082,16 @@ L3 programming layer <2026-01-19>
  ***********
 Package rerunfilecheck Info: File `frequency-grids-formalization.out' has not c
 hanged.
-(rerunfilecheck)             Checksum: FA48ACB1952A4958C9A41EBC5DC64C20;6063.
+(rerunfilecheck)             Checksum: 4EB7EC583F1CC50DBF66AF5AFCF13DDA;7122.
  ) 
 Here is how much of TeX's memory you used:
- 14605 strings out of 469438
- 227771 string characters out of 5468410
- 862268 words of memory out of 5000000
- 42559 multiletter control sequences out of 15000+600000
- 773548 words of font info for 306 fonts, out of 8000000 for 9000
+ 14648 strings out of 469438
+ 228307 string characters out of 5468410
+ 864591 words of memory out of 5000000
+ 42569 multiletter control sequences out of 15000+600000
+ 774539 words of font info for 317 fonts, out of 8000000 for 9000
  59 hyphenation exceptions out of 8191
- 75i,11n,79p,1026b,689s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 75i,11n,79p,1026b,686s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texmf/fonts/type1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/ty
 pe1/public/lm/lmbx12.pfb></usr/share/texmf/fonts/type1/public/lm/lmbx9.pfb></us
 r/share/texmf/fonts/type1/public/lm/lmex10.pfb></usr/share/texmf/fonts/type1/pu
@@ -1100,10 +1113,10 @@ e/texmf/fonts/type1/public/lm/lmsy8.pfb></usr/share/texmf/fonts/type1/public/lm
 /fonts/type1/public/lm/lmtt12.pfb></usr/share/texmf/fonts/type1/public/lm/lmtt9
 .pfb></usr/share/texmf/fonts/type1/public/lm/lmtti10.pfb></usr/share/texlive/te
 xmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on frequency-grids-formalization.pdf (20 pages, 674717 bytes).
+Output written on frequency-grids-formalization.pdf (23 pages, 697476 bytes).
 PDF statistics:
- 550 PDF objects out of 1000 (max. 8388607)
- 455 compressed objects within 5 object streams
- 122 named destinations out of 1000 (max. 500000)
- 83673 words of extra memory for PDF output out of 89155 (max. 10000000)
+ 594 PDF objects out of 1000 (max. 8388607)
+ 496 compressed objects within 5 object streams
+ 133 named destinations out of 1000 (max. 500000)
+ 83705 words of extra memory for PDF output out of 89155 (max. 10000000)
 

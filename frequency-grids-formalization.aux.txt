@@ -23,11 +23,11 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.2}One lattice}{6}{subsection.5.2}\protected@file@percent }
 \newlabel{thm:kSet}{{5.3}{6}{\code {card\lb kSet\lb bounds}}{theorem.5.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.3}The $200$ lattices and the slope}{6}{subsection.5.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Distinct count versus mode count}{6}{subsection.5.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Distinct count versus mode count}{7}{subsection.5.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {6}Item 4: the off-diagonal Gram bound}{7}{section.6}\protected@file@percent }
 \newlabel{sec:item4}{{6}{7}{Item 4: the off-diagonal Gram bound}{section.6}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {7}Item 5: invariance of $\operatorname  {Re}S_f$ under $b\DOTSB \mapstochar \rightarrow -b$}{7}{section.7}\protected@file@percent }
-\newlabel{sec:item5}{{7}{7}{Item 5: invariance of $\operatorname {Re}S_f$ under $b\mapsto -b$}{section.7}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Item 5: invariance of $\operatorname  {Re}S_f$ under $b\DOTSB \mapstochar \rightarrow -b$}{8}{section.7}\protected@file@percent }
+\newlabel{sec:item5}{{7}{8}{Item 5: invariance of $\operatorname {Re}S_f$ under $b\mapsto -b$}{section.7}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {8}Item 6: the $6n\pm 1$ filter}{8}{section.8}\protected@file@percent }
 \newlabel{sec:item6}{{8}{8}{Item 6: the $6n\pm 1$ filter}{section.8}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {9}The Gram matrix, $N_{\mathrm  {off}}$ and $N_{\mathrm  {van}}$}{8}{section.9}\protected@file@percent }
@@ -37,40 +37,46 @@
 \newlabel{sec:eigen-factor}{{9.1}{9}{The factorisation, the spectrum and the rank}{subsection.9.1}{}}
 \newlabel{thm:EEH}{{9.10}{9}{\code {gramMatrix\lb eq\lb mul\lb conjTranspose}}{theorem.9.10}{}}
 \newlabel{thm:posSemidef}{{9.11}{9}{\code {gramMatrix\lb posSemidef}, \code {eig\lb nonneg}, \code {eigPos\lb eq\lb eig}, \code {rank\lb gramMatrix\lb le}}{theorem.9.11}{}}
-\newlabel{thm:Nvanrank}{{9.13}{9}{\code {card\lb le\lb Nvan\lb add}, \code {Ntotal\lb sub\lb le\lb Nvan}, \code {NR\lb sub\lb le\lb Nvan}}{theorem.9.13}{}}
+\newlabel{thm:Nvanrank}{{9.13}{10}{\code {card\lb le\lb Nvan\lb add}, \code {Ntotal\lb sub\lb le\lb Nvan}, \code {NR\lb sub\lb le\lb Nvan}}{theorem.9.13}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {9.2}The general frequency family, and the distinct-frequency lattice}{10}{subsection.9.2}\protected@file@percent }
 \newlabel{sec:eigen-general}{{9.2}{10}{The general frequency family, and the distinct-frequency lattice}{subsection.9.2}{}}
 \@writefile{toc}{\contentsline {paragraph}{Two instances.}{10}{section*.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {9.3}Collisions are impossible}{10}{subsection.9.3}\protected@file@percent }
-\newlabel{sec:nocollision}{{9.3}{10}{Collisions are impossible}{subsection.9.3}{}}
-\newlabel{thm:nocollision}{{9.18}{10}{\code {abs\lb s2\lb injective}, \code {not\lb hasCollision}, \code {NR\lb eq\lb Ntotal}}{theorem.9.18}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.3}Collisions are impossible}{11}{subsection.9.3}\protected@file@percent }
+\newlabel{sec:nocollision}{{9.3}{11}{Collisions are impossible}{subsection.9.3}{}}
+\newlabel{thm:nocollision}{{9.18}{11}{\code {abs\lb s2\lb injective}, \code {not\lb hasCollision}, \code {NR\lb eq\lb Ntotal}}{theorem.9.18}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {9.4}A numerical remark: the diagnostics are not small}{11}{subsection.9.4}\protected@file@percent }
 \newlabel{sec:eigen-num}{{9.4}{11}{A numerical remark: the diagnostics are not small}{subsection.9.4}{}}
-\@writefile{toc}{\contentsline {paragraph}{The statement $N_{\mathrm  {off}}=\#\mathrm  {modeSet}$ is not proved --- but its analytic input now is.}{11}{section*.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {10}The truncation cannot grow slowly}{11}{section.10}\protected@file@percent }
-\newlabel{sec:necessary}{{10}{11}{The truncation cannot grow slowly}{section.10}{}}
+\@writefile{toc}{\contentsline {paragraph}{The statement $N_{\mathrm  {off}}=\#\mathrm  {modeSet}$ is not proved --- but its analytic input now is.}{12}{section*.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {10}The truncation cannot grow slowly}{12}{section.10}\protected@file@percent }
+\newlabel{sec:necessary}{{10}{12}{The truncation cannot grow slowly}{section.10}{}}
 \newlabel{thm:necessary}{{10.1}{12}{\code {NvanLittleO.eventually\lb le\lb Ntotal}}{theorem.10.1}{}}
 \newlabel{thm:refute}{{10.3}{12}{\code {not\lb NvanLittleO\lb of\lb le\lb Ntotal}, \code {not\lb NvanLittleO\lb of\lb le\lb NR}}{theorem.10.3}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {11}The conjectures: stated, not proved}{12}{section.11}\protected@file@percent }
-\newlabel{sec:conj}{{11}{12}{The conjectures: stated, not proved}{section.11}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {11}The conjectures: stated, not proved}{13}{section.11}\protected@file@percent }
+\newlabel{sec:conj}{{11}{13}{The conjectures: stated, not proved}{section.11}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {12}An explicit estimate for the Gram entries}{13}{section.12}\protected@file@percent }
 \newlabel{sec:estimate}{{12}{13}{An explicit estimate for the Gram entries}{section.12}{}}
-\newlabel{rem:status-s2}{{12.5}{13}{}{theorem.12.5}{}}
+\newlabel{rem:status-s2}{{12.5}{14}{}{theorem.12.5}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {13}Uniqueness of the root, and $t_{\max }$ as a parameter}{14}{section.13}\protected@file@percent }
 \newlabel{sec:unique}{{13}{14}{Uniqueness of the root, and $t_{\max }$ as a parameter}{section.13}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {13.1}Strict monotonicity and uniqueness}{14}{subsection.13.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {13.2}The truncation $t_{\max }$}{14}{subsection.13.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {14}Verification notes}{14}{section.14}\protected@file@percent }
-\newlabel{sec:verif}{{14}{14}{Verification notes}{section.14}{}}
-\@writefile{toc}{\contentsline {paragraph}{Axioms.}{14}{section*.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Build.}{15}{section*.10}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Design choices worth knowing.}{15}{section*.11}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{What a reader should not conclude.}{15}{section*.12}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {15}Declaration-by-declaration table}{15}{section.15}\protected@file@percent }
-\newlabel{sec:table}{{15}{15}{Declaration-by-declaration table}{section.15}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {13.2}The truncation $t_{\max }$}{15}{subsection.13.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {14}The band theorem, and the lattice against the zeta zeros}{15}{section.14}\protected@file@percent }
+\newlabel{sec:band}{{14}{15}{The band theorem, and the lattice against the zeta zeros}{section.14}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {14.1}Why the bands matter}{15}{subsection.14.1}\protected@file@percent }
+\newlabel{thm:bands}{{14.1}{15}{\code {Delta}, \code {abs\lb b\lb sub\lb centre}, \code {abs\lb b\lb band}, \code {abs\lb b\lb sub\lb centre\lb ge}}{theorem.14.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {14.2}What the theorem excludes}{15}{subsection.14.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {14.3}Three further obstructions, and what they do not say}{16}{subsection.14.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {15}Verification notes}{16}{section.15}\protected@file@percent }
+\newlabel{sec:verif}{{15}{16}{Verification notes}{section.15}{}}
+\@writefile{toc}{\contentsline {paragraph}{Axioms.}{16}{section*.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Build.}{17}{section*.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Design choices worth knowing.}{17}{section*.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{What a reader should not conclude.}{17}{section*.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {16}Declaration-by-declaration table}{17}{section.16}\protected@file@percent }
+\newlabel{sec:table}{{16}{17}{Declaration-by-declaration table}{section.16}{}}
 \gdef \LT@i {\LT@entry 
     {1}{110.69783pt}\LT@entry 
     {1}{51.2483pt}\LT@entry 
     {1}{246.43422pt}\LT@entry 
     {1}{45.25641pt}}
-\gdef \@abspage@last{20}
+\gdef \@abspage@last{23}

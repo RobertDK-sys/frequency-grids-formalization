@@ -135,6 +135,13 @@ as follows.
   Instantiating at the \emph{distinct} resonant frequencies --- an index type of cardinality
   $N_R(T)$ --- gives $N_{\mathrm{van}}(F)\ge N_R-\lfloor X\rfloor$ with no collision
   hypothesis (\S\ref{sec:eigen-general}).
+\item \textbf{The band theorem} (\code{FrequencyGrids/Band.lean}). Every modulus
+  $|b(t,k,\sigma)|$ lies within $\Delta/4$ of $j\Delta$ for some $j \ge 1$, where
+  $\Delta = 2\pi/\ln 2$; the deviation from the centre is exactly
+  $|\arcsin(\sigma|s_2 t|)|/\ln 2$, and for $1 \le t \le 589$ it is at least $\Delta/6$. Only
+  $|\arcsin| \le \pi/2$ enters, so the conclusion is independent of the characteristic equation,
+  of $t_{\max}$ and of the sign convention --- and it puts four of the first five zeta ordinates
+  outside the lattice by a margin of at least $0.6264$ (\S\ref{sec:band}).
 \item \textbf{The truncation} (\code{FrequencyGrids/Necessary.lean}). With $X$ a parameter of
   the conjecture, $N_{\mathrm{van}}=o(N_R)$ implies $X(T)\ge(1-\varepsilon)N_{\mathrm{tot}}(T)$
   eventually for every $\varepsilon>0$, so a truncation with $X\le c\,N_R$, $c<1$, refutes it
@@ -1023,6 +1030,118 @@ two experiments ($t_{\max}=100$ in \S6.4.3, $t_{\max}=10$ in \S6.4.8) are the tw
 statement.
 \end{theorem}
 
+
+\section{The band theorem, and the lattice against the zeta zeros}\label{sec:band}
+
+\subsection{Why the bands matter}
+
+Everything in \S\S\ref{sec:item1}--\ref{sec:unique} formalises the bookkeeping of the construction.
+A different question was put to this project from outside: does the frequency lattice
+$b(t,k,\sigma)$ explain the zeros of the Riemann zeta function, or the coherence features reported in
+two nuclear-magnetic-resonance experiments? That question was examined by a swarm of eight
+independent analyses; the consolidated record is \code{paper/swarm\lb note.md}, with the member
+reports and their scripts preserved verbatim in \code{paper/swarm/}. The part of that work which is
+mathematics rather than inference is the band theorem below, and it is now formalised.
+
+The point is what the statement does \emph{not} depend on. Write $\Delta = 2\pi/\ln 2$ and
+$\theta = \arcsin(\sigma|s_2 t|)$. Since $\theta \in [-\pi/2,\pi/2]$ and $k \ne 0$ forces
+$|2k\pi| \ge 2\pi$, the numerator $\theta - 2k\pi$ has modulus at least $3\pi/2$ and at most
+$|2k\pi| + \pi/2$; dividing by $\ln 2$ confines every modulus to a band of half-width $\Delta/4$
+around a multiple of $\Delta$. Only $|\arcsin| \le \pi/2$ enters --- not the characteristic equation,
+not $t_{\max}$, not the map $t \mapsto s_2(t)$, not the sign convention.
+
+\begin{theorem}[\code{Delta}, \code{abs\lb b\lb sub\lb centre}, \code{abs\lb b\lb band},
+\code{abs\lb b\lb sub\lb centre\lb ge}]\label{thm:bands}
+With $\Delta = 2\pi/\ln 2$:
+
+\begin{enumerate}
+\item the deviation of a modulus from the band centre $|k|\Delta$ is exactly
+  $\bigl||b(t,k,\sigma)| - |k|\Delta\bigr| = |\arcsin(\sigma|s_2 t|)|/\ln 2$;
+\item hence for every $t$, every $k \ne 0$ and every real $\sigma$ there is an integer $j \ge 1$
+  with $\bigl||b(t,k,\sigma)| - j\Delta\bigr| \le \Delta/4$;
+\item and for $1 \le t \le 589$ and $\sigma = \pm 1$ the deviation is at least $\Delta/6$, because
+  $\arcsin|s_2 t| \ge \pi/3$ (\code{arcsin\lb abs\lb s2\lb ge}, from $|s_2 1| > \sqrt3/2$ and
+  $\arcsin(\sqrt3/2) = \pi/3$).
+\end{enumerate}
+\end{theorem}
+
+Consequently every gap $\bigl((j+\tfrac14)\Delta,(j+\tfrac34)\Delta\bigr)$ of length
+$\Delta/2 = 4.53236$ is empty of modes for \emph{every} admissible variant of the construction, and
+by part 3 there is in addition a hole $\bigl(j\Delta - \Delta/6,\; j\Delta + \Delta/6\bigr)$ inside
+each band. Numerically $\Delta/4 = 2.26618$, $\Delta/6 = 1.51079$,
+$\inf |b| = 3\pi/(2\ln 2) = 6.7985402127$ (a limit, not attained), and the two edges of the first
+band are $A_{1,1} = \Delta - a_1 = 7.2887595661$ and $C_{1,1} = \Delta + a_1 = 10.8406810012$ with
+$a_1 = \arcsin|s_2 1|/\ln 2 = 1.7759607176$.
+
+\subsection{What the theorem excludes}
+
+Applying Theorem~\ref{thm:bands} to the first five ordinates of $\zeta$:
+
+\begin{center}
+\small
+\begin{tabular}{rrrr}
+\toprule
+ordinate & location & nearest band edge & distance to the band union \\
+\midrule
+$\gamma_1 = 14.1347251417$ & gap & $2\Delta-\Delta/4 = 15.8632604964$ & $1.7285353547$ \\
+$\gamma_2 = 21.0220396388$ & gap & $2\Delta+\Delta/4 = 20.3956206382$ & $0.6264190005$ \\
+$\gamma_3 = 25.0108575801$ & \textbf{inside} band $j = 3$ & --- & $0$ \\
+$\gamma_4 = 30.4248761259$ & gap & $3\Delta+\Delta/4 = 29.4603409219$ & $0.9645352040$ \\
+$\gamma_5 = 32.9350615877$ & gap & $4\Delta-\Delta/4 = 33.9927010637$ & $1.0576394760$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+So for every tolerance $\varepsilon < 0.6264190005$ at most one of the five can be approximated,
+and no $t_{\max}$ --- including $t_{\max} \to \infty$ --- matches all five better than $1.7285354$.
+The one admissible ordinate $\gamma_3$ is not attained: an exact match would need
+$a_t = 3\Delta - \gamma_3 = 2.1833032708$, bracketed by $a_{35} = 2.1824877870$ and
+$a_{36} = 2.1836577217$, so no integer $t$ works; the nearest is $|b(36,-3,-1)| = 25.0105031293$ at
+distance $3.544509\cdot 10^{-4}$.
+
+\subsection{Three further obstructions, and what they do not say}
+
+The swarm established three results of a different kind, recorded in \code{paper/swarm\lb note.md}
+and \emph{not} formalised here, because they are asymptotic or statistical rather than algebraic:
+
+\begin{itemize}
+\item \textbf{counting.} With $M = t_{\max}$ the number of distinct moduli up to $T$ is
+  $D_M(T) = \sum_{t\le M}\bigl(\lfloor (T-a_t)/\Delta\rfloor + \lfloor (T+a_t)/\Delta\rfloor\bigr)
+  = (M\ln 2/\pi)T + O(M)$, so the sign-labelled count satisfies $C_M/N(T) \sim 4M\ln 2/\log T$
+  against $N(T) \sim (T/2\pi)\log T$: for fixed $M$ no injective $\varepsilon$-correspondence with
+  all zero ordinates can exist. At $M = T = 100$ this gives $C_M = 4200$, in agreement with the
+  formalised $N_R = N_{\mathrm{tot}}$ of \S\ref{sec:item3} and its $O(M)$ slack.
+\item \textbf{pair statistics.} A finite union of $J$ distinct $\Delta$-progressions has Fourier
+  transform a Dirac comb on $(\ln 2)\mathbb Z$, and its ordered pair-difference measure converges to
+  a purely atomic measure with mass $\ge 1$ at every $J\ell$, $\ell \ne 0$. The folded positive
+  grid has $J = 2t_{\max}$. Hence its pair statistics are never those of the Gaussian unitary
+  ensemble, and --- conditionally on Montgomery's conjecture --- no fixed grid can injectively
+  approximate every large ordinate at tolerance below half its least gap.
+\item \textbf{phase freedom.} Replacing the arcsine phase law by one fitted to the targets
+  reproduces the five ordinates exactly, with $j_n = \mathrm{round}(\gamma_n/\Delta)$ and
+  $\vartheta_n = (\ln 2)\,\gamma_n - 2\pi j_n$, by prescribing either $\vartheta_n$ directly or
+  $2\arcsin(\sigma_n q_n)$ with $q_n = |\sin(\vartheta_n/2)|$. Five free phases encode five numbers:
+  that is a reparametrisation, not an explanation, and it predicts nothing about a sixth ordinate.
+\end{itemize}
+
+Two further observations bound what may be claimed. The published 16-level model itself,
+$L_{16}(\beta,t) = -\sum_{n\le 16}(-1)^{n+1}n^{-\beta-it}\big/\sum_{n\le 16}n^{-\beta}$, is positive
+and strictly decreasing on $[6.2,7.9]$ for $\beta = 0.3$ and $0.5$ (certified by directed-interval
+arithmetic on 1700 cells), so neither of the two windows proposed for $]0,10[$ contains a zero or a
+trough of that model; and at $\beta = 1/2$ the factor $1-2^{1-\beta-it}$ cannot vanish, so there is
+no thermodynamic $\zeta$-induced zero below $\gamma_1$. In the other direction, a retrospective
+agreement computed after the same curves were used to choose the windows and the interpolation is
+not a $p$-value; the defensible statement is a prospective equivalence test at a pre-declared
+tolerance, and the swarm's report gives the design, the Fieller confidence sets for the fitted
+minima, the horizontal standard error $\sigma/(\sqrt2\,|q''|h)$, and the look-elsewhere budget.
+
+\noindent
+The verifiable content of this section is Theorem~\ref{thm:bands}: the bands are a property of the
+phase map, so no change of the characteristic equation, of $t_{\max}$ or of the sign convention can
+fill a gap, and four of the five ordinates are excluded by a margin of at least $0.6264$. The
+asymptotic and statistical statements above are recorded with their hypotheses in the swarm note;
+none of them is a theorem of this development.
+
 \section{Verification notes}\label{sec:verif}
 
 \paragraph{Axioms.} For every theorem of items 1--6, \code{\#print axioms} returns a subset
@@ -1280,6 +1399,34 @@ proof.
 \texttt{modeSet}\lb\texttt{eq} & thm & $\texttt{modeSet}\,T=\texttt{modeSetOf}\,100\,T$ & proved\\
 \texttt{NtotalOf} & def & $N_{\mathrm{tot}}(t_{\max},T)$ & definition\\
 \texttt{NtotalOf}\lb\texttt{bounds} & thm & $|N_{\mathrm{tot}}-2t_{\max}T\ln2/\pi|\le6\,t_{\max}$ & proved\\
+\multicolumn{4}{@{}p{15.1cm}@{}}{\textit{\texttt{FrequencyGrids/Neighbour.lean} — the certified brackets pushed through $\arcsin$: frequency gaps for $t\to t+1$}}\\
+\addlinespace[2pt]
+\texttt{arcsin}\lb\texttt{sub}\lb\texttt{le} & thm & $0<b\le a<1\Rightarrow\arcsin a-\arcsin b\le(a-b)/\sqrt{1-a^2}$ \ (MVT) & proved\\
+\texttt{inv}\lb\texttt{sqrt}\lb\texttt{le} & thm & $1\le R^2(1-a^2)\Rightarrow 1/\sqrt{1-a^2}\le R$ & proved\\
+\texttt{abs}\lb\texttt{s2}\lb\texttt{mem} & thm & $s_2 t\in(lo,hi),\ hi<0\Rightarrow|s_2 t|\in(-hi,-lo)$ & proved\\
+\texttt{abs}\lb\texttt{s2}\lb\texttt{mem}\lb\texttt{1}\dots\texttt{10} & thm & $|s_2 t|\in(lo_t,hi_t)$, $t=1,\dots,10$ & proved\\
+\texttt{abs}\lb\texttt{s2}\lb\texttt{gap}\lb\texttt{1}\dots\texttt{9} & thm & $|s_2(t+1)|-|s_2 t|\le g_t$ \ ($0.028153$ at $t=1$, $0.000654$ at $t=9$) & proved\\
+\texttt{inv}\lb\texttt{sqrt}\lb\texttt{bound}\lb\texttt{1}\dots\texttt{9} & thm & $1/\sqrt{1-|s_2(t+1)|^2}\le R_t$ \ ($4.181$ to $9.242$) & proved\\
+\multicolumn{4}{@{}p{15.1cm}@{}}{\textit{\texttt{FrequencyGrids/Band.lean} — the band theorem (equation-independent) and the gaps}}\\
+\addlinespace[2pt]
+\texttt{abs}\lb\texttt{arcsin}\lb\texttt{le} & thm & $|\arcsin x|\le\pi/2$ & proved\\
+\texttt{one}\lb\texttt{le}\lb\texttt{abs}\lb\texttt{cast} & thm & $k\ne0\Rightarrow1\le|(k:\R)|$ & proved\\
+\texttt{abs}\lb\texttt{b}\lb\texttt{ge} & thm & $6.79\le|b|$ for every $t$ and $k\ne0$ & proved\\
+\texttt{no}\lb\texttt{mode}\lb\texttt{below} & thm & $\neg(|b|<6.79)$ & proved\\
+\texttt{arcsin}\lb\texttt{sqrt}\lb\texttt{three}\lb\texttt{div}\lb\texttt{two} & thm & $\arcsin(\sqrt3/2)=\pi/3$ & proved\\
+\texttt{abs}\lb\texttt{s2}\lb\texttt{ge}\lb\texttt{one} & thm & $|s_2 1|\le|s_2 t|$ for $1\le t\le589$ & proved\\
+\texttt{sqrt}\lb\texttt{three}\lb\texttt{div}\lb\texttt{two}\lb\texttt{le}\lb\texttt{abs}\lb\texttt{s2} & thm & $\sqrt3/2\le|s_2 t|$ & proved\\
+\texttt{arcsin}\lb\texttt{abs}\lb\texttt{s2}\lb\texttt{ge} & thm & $\pi/3\le\arcsin|s_2 t|$ for $1\le t\le589$ & proved\\
+\texttt{arcsin}\lb\texttt{sigma} & thm & $\arcsin(\sigma|s_2 t|)=\sigma\arcsin|s_2 t|$, $\sigma=\pm1$ & proved\\
+\texttt{abs}\lb\texttt{sigma}\lb\texttt{arcsin}\lb\texttt{le} & thm & $|\sigma\arcsin|s_2 t||\le\pi/2$ & proved\\
+\texttt{b}\lb\texttt{gap} & thm & $\neg(7.56<|b|<10.5)$ \ ($1\le t\le589$) & proved\\
+\texttt{Delta} & def & $\Delta=2\pi/\ln 2$ & definition\\
+\texttt{Delta}\lb\texttt{pos} & thm & $\Delta>0$ & proved\\
+\texttt{Delta}\lb\texttt{div}\lb\texttt{four} & thm & $\Delta/4=\pi/(2\ln2)$ & proved\\
+\texttt{Delta}\lb\texttt{div}\lb\texttt{six} & thm & $\Delta/6=\pi/(3\ln2)$ & proved\\
+\texttt{abs}\lb\texttt{b}\lb\texttt{sub}\lb\texttt{centre} & thm & $\bigl||b(t,k,\sigma)|-|k|\Delta\bigr|=|\arcsin(\sigma|s_2 t|)|/\ln2$ & proved\\
+\texttt{abs}\lb\texttt{b}\lb\texttt{band} & thm & m2's theorem: $\exists j\ge1$, $\bigl||b|-j\Delta\bigr|\le\Delta/4$ \ (any $t$, any $\sigma$, any equation) & proved\\
+\texttt{abs}\lb\texttt{b}\lb\texttt{sub}\lb\texttt{centre}\lb\texttt{ge} & thm & $\Delta/6\le\bigl||b|-|k|\Delta\bigr|$ \ (no mode near a band centre) & proved\\
 \multicolumn{4}{@{}p{15.1cm}@{}}{\textit{\texttt{FrequencyGrids/GeneralGram.lean} — arbitrary frequency families $G=EE^{\mathsf H}$, and the distinct-frequency lattice ($\#\iota=N_R$)}}\\
 \addlinespace[2pt]
 \texttt{gramOf} & def & $G_{ij}(X)=\sum_{n\le X}n^{-1-i(f_i-f_j)}$ for $f:\iota\to\R$ & definition\\
